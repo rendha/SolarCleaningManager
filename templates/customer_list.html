@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Customer Database</h2>
+            <p class="text-muted mb-0">
+                All customers and their solar sites
+            </p>
+        </div>
+
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            Dashboard
+        </a>
+    </div>
+
+
+    <!-- SEARCH -->
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+
+            <form method="get" class="row g-2">
+
+                <div class="col-md-10">
+
+                    <input
+                        type="text"
+                        name="q"
+                        value="{{ query }}"
+                        class="form-control"
+                        placeholder="Search customer name, contact person or phone..."
+                    >
+
+                </div>
+
+                <div class="col-md-2">
+
+                    <button class="btn btn-primary w-100">
+                        Search
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+
+    <!-- CUSTOMER TABLE -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover mb-0">
+
+                    <thead class="table-dark">
+
+                        <tr>
+                            <th>#</th>
+                            <th>Customer</th>
+                            <th>Contact Person</th>
+                            <th>Phone</th>
+                            <th>Sites</th>
+                            <th>Solar Capacity</th>
+                            <th>Google Map</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                    {% for customer in customers %}
+
+                        <tr>
+
+                            <td>
+                                {{ forloop.counter }}
+                            </td>
+
+                            <td>
+                                <strong>{{ customer.name }}</strong>
+                            </td>
+
+                            <td>
+                                {{ customer.contact_person|default:"-" }}
+                            </td>
+
+                            <td>
+                                {{ customer.phone|default:"-" }}
+                            </td>
+
+                            <td>
+
+                                {% for site in customer.sites.all %}
+
+                                    <div class="mb-2">
+                                        <strong>
+                                            {{ site.location }}
+                                        </strong>
+                                    </div>
+
+                                {% empty %}
+
+                                    <span class="text-muted">
+                                        No site
+                                    </span>
+
+                                {% endfor %}
+
+                            </td>
+
+                            <td>
+
+                                {% for site in customer.sites.all %}
+
+                                    <div class="mb-2">
+
+                                        {% if site.solar_kw %}
+                                            {{ site.solar_kw }} kW
+                                        {% else %}
+                                            -
+                                        {% endif %}
+
+                                    </div>
+
+                                {% empty %}
+
+                                    -
+
+                                {% endfor %}
+
+                            </td>
+
+                            <td>
+
+                                {% for site in customer.sites.all %}
+
+                                    <div class="mb-2">
+
+                                        {% if site.google_map_link %}
+
+                                            <a
+                                                href="{{ site.google_map_link }}"
+                                                target="_blank"
+                                                class="btn btn-sm btn-outline-primary"
+                                            >
+                                                View Map
+                                            </a>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                No map
+                                            </span>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                {% empty %}
+
+                                    -
+
+                                {% endfor %}
+
+                            </td>
+
+                        </tr>
+
+                    {% empty %}
+
+                        <tr>
+
+                            <td colspan="7" class="text-center py-5">
+
+                                <h5>No customers found</h5>
+
+                                {% if query %}
+                                    <p class="text-muted">
+                                        Try another search.
+                                    </p>
+                                {% endif %}
+
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container">
+
+    <!-- HEADER -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h2>{{ customer.name }}</h2>
+
+            <div class="text-muted">
+
+                {% if customer.contact_person %}
+                    Contact: {{ customer.contact_person }}
+                {% endif %}
+
+                {% if customer.phone %}
+                    | {{ customer.phone }}
+                {% endif %}
+
+            </div>
+
+        </div>
+
+        <a
+            href="{% url 'customer_list' %}"
+            class="btn btn-outline-secondary"
+        >
+            ← Back to Customers
+        </a>
+
+    </div>
+
+
+    <!-- SUMMARY -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3">
+
+                <small class="text-muted">
+                    Total Cleanings
+                </small>
+
+                <h3>
+                    {{ jobs|length }}
+                </h3>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3">
+
+                <small class="text-muted">
+                    Revenue
+                </small>
+
+                <h3>
+                    ₹{{ total_revenue|floatformat:2 }}
+                </h3>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3">
+
+                <small class="text-muted">
+                    Expenses
+                </small>
+
+                <h3>
+                    ₹{{ total_expenses|floatformat:2 }}
+                </h3>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3">
+
+                <small class="text-muted">
+                    Net Profit
+                </small>
+
+                <h3>
+                    ₹{{ total_profit|floatformat:2 }}
+                </h3>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- PAYMENT SUMMARY -->
+
+    <div class="card shadow-sm p-3 mb-4">
+
+        <h5>Payment Summary</h5>
+
+        <div class="row">
+
+            <div class="col-md-3">
+                Paid:
+                <strong>{{ paid_jobs }}</strong>
+            </div>
+
+            <div class="col-md-3">
+                Unpaid:
+                <strong>{{ unpaid_jobs }}</strong>
+            </div>
+
+            <div class="col-md-3">
+                Free:
+                <strong>{{ free_jobs }}</strong>
+            </div>
+
+            <div class="col-md-3">
+                Outstanding:
+                <strong>
+                    ₹{{ outstanding|floatformat:2 }}
+                </strong>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SITES -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-header">
+            <h5 class="mb-0">Customer Sites</h5>
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table mb-0">
+
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Address</th>
+                        <th>Solar Capacity</th>
+                        <th>First Cleaning</th>
+                        <th>Map</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                {% for site in sites %}
+
+                    <tr>
+
+                        <td>
+                            {{ site.location|default:"-" }}
+                        </td>
+
+                        <td>
+                            {{ site.address|default:"-" }}
+                        </td>
+
+                        <td>
+                            {% if site.solar_kw %}
+                                {{ site.solar_kw }} kW
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td>
+
+                            {% if site.first_cleaning_done %}
+
+                                <span class="badge bg-success">
+                                    Done
+                                </span>
+
+                                {% if site.first_cleaning_date %}
+                                    <br>
+                                    <small>
+                                        {{ site.first_cleaning_date }}
+                                    </small>
+                                {% endif %}
+
+                            {% else %}
+
+                                <span class="badge bg-warning text-dark">
+                                    Not Done
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {% if site.google_map_link %}
+
+                                <a
+                                    href="{{ site.google_map_link }}"
+                                    target="_blank"
+                                    class="btn btn-sm btn-outline-primary"
+                                >
+                                    📍 Map
+                                </a>
+
+                            {% else %}
+
+                                -
+
+                            {% endif %}
+
+                        </td>
+
+                    </tr>
+
+                {% empty %}
+
+                    <tr>
+                        <td colspan="5">
+                            No sites found.
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <!-- CLEANING HISTORY -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+
+            <h5 class="mb-0">
+                Cleaning History
+            </h5>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table table-hover mb-0">
+
+                <thead>
+
+                    <tr>
+                        <th>Date</th>
+                        <th>Site</th>
+                        <th>Capacity</th>
+                        <th>Cleaning #</th>
+                        <th>Type</th>
+                        <th>Payment</th>
+                        <th>Revenue</th>
+                        <th>Expenses</th>
+                        <th>Profit</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                {% for job in jobs %}
+
+                    <tr>
+
+                        <td>
+                            {{ job.date }}
+                        </td>
+
+                        <td>
+                            {{ job.site_location }}
+                        </td>
+
+                        <td>
+                            {{ job.system_size_kw }}
+                        </td>
+
+                        <td>
+                            #{{ job.cleaning_number }}
+                        </td>
+
+                        <td>
+
+                            {% if job.is_free %}
+
+                                <span class="badge bg-info">
+                                    Free
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-secondary">
+                                    Paid
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {% if job.is_free %}
+
+                                -
+
+                            {% elif job.payment_status == 'Paid' %}
+
+                                <span class="badge bg-success">
+                                    Paid
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-danger">
+                                    Unpaid
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+                            ₹{{ job.revenue|floatformat:2 }}
+                        </td>
+
+                        <td>
+                            ₹{{ job.total_expenses|floatformat:2 }}
+                        </td>
+
+                        <td>
+                            ₹{{ job.net_profit|floatformat:2 }}
+                        </td>
+
+                    </tr>
+
+                    <!-- EXPENSE DETAILS -->
+
+{% with expenses=job.expenses.all %}
+    {% if expenses %}
+
+        <tr>
+            <td></td>
+
+            <td colspan="8">
+
+                <small class="text-muted">
+                    <strong>Expenses:</strong>
+                </small>
+
+                {% for expense in expenses %}
+
+                    <span class="badge bg-light text-dark border me-1">
+                        {{ expense.expense_name }}:
+                        ₹{{ expense.cost|floatformat:2 }}
+                    </span>
+
+                {% endfor %}
+
+            </td>
+        </tr>
+
+    {% endif %}
+{% endwith %}
+
+                {% empty %}
+
+                    <tr>
+
+                        <td
+                            colspan="9"
+                            class="text-center py-4"
+                        >
+                            No cleaning jobs recorded yet.
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

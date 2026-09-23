@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2>Business Dashboard</h2>
+        <p class="text-muted">Track your solar panel cleaning metrics and profit performance.</p>
+    </div>
+    <!-- Monthly Filter Form -->
+    <div class="col-md-4">
+        <form method="get" class="d-flex gap-2">
+            <input type="month" name="month" class="form-control" value="{{ selected_month|default:'' }}">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Reset</a>
+        </form>
+    </div>
+</div>
+
+<!-- Metrics Cards -->
+<div class="row text-white mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary p-3 shadow-sm">
+            <h5>Total Cleanings</h5>
+            <h3>{{ total_cleanings }}</h3>
+            <small>Paid: {{ paid_count }} | Unpaid: {{ unpaid_count }} | Free: {{ free_count }}</small>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success p-3 shadow-sm">
+            <h5>Total Revenue</h5>
+            <h3>Rs{{ total_revenue|floatformat:2 }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-danger p-3 shadow-sm">
+            <h5>Total Expenses</h5>
+            <h3>Rs{{ total_expenses|floatformat:2 }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card {% if total_profit >= 0 %}bg-info{% else %}bg-warning{% endif %} p-3 shadow-sm text-dark">
+            <h5>Net Profit / Loss</h5>
+            <h3>Rs{{ total_profit|floatformat:2 }}</h3>
+        </div>
+    </div>
+</div>
+
+<!-- Outstanding Amount Alert -->
+{% if outstanding_amount > 0 %}
+<div class="alert alert-warning shadow-sm" role="alert">
+    <strong>⚠️ Outstanding Balance:</strong> You have <strong>${{ outstanding_amount|floatformat:2 }}</strong> in unpaid invoices from completed paid cleanings.
+</div>
+{% endif %}
+
+<div class="text-center mt-4">
+    <a href="{% url 'add_job' %}" class="btn btn-dark btn-lg">➕ Record New Cleaning Job</a>
+</div>
+{% endblock %}

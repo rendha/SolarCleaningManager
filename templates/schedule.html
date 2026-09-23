@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Cleaning Schedule</title>
+
+    <!-- FullCalendar -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
+        rel="stylesheet"
+    >
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js">
+    </script>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            background: #f5f7fa;
+            color: #222;
+        }
+
+        .page-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 20px;
+        }
+
+        .page-header h1 {
+
+            margin: 0;
+
+            font-size: 28px;
+        }
+
+        .add-button {
+
+            display: inline-block;
+
+            padding: 11px 18px;
+
+            background: #3B73B9;
+
+            color: white;
+
+            text-decoration: none;
+
+            border-radius: 8px;
+
+            font-weight: 600;
+        }
+
+        .add-button:hover {
+
+            opacity: 0.9;
+        }
+
+        .calendar-card {
+
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 20px;
+
+            box-shadow:
+                0 2px 12px
+                rgba(0,0,0,0.08);
+        }
+
+        #calendar {
+
+            max-width: 100%;
+        }
+
+
+        /* ==========================
+           EVENT
+           ========================== */
+
+        .fc-event {
+
+            cursor: pointer;
+
+            border-radius: 5px;
+
+            padding: 2px 4px;
+
+            font-size: 13px;
+        }
+
+
+        /* ==========================
+           MODAL
+           ========================== */
+
+        .modal {
+
+            display: none;
+
+            position: fixed;
+
+            z-index: 9999;
+
+            left: 0;
+
+            top: 0;
+
+            width: 100%;
+
+            height: 100%;
+
+            background:
+                rgba(0,0,0,0.5);
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 20px;
+        }
+
+        .modal.show {
+
+            display: flex;
+        }
+
+        .modal-content {
+
+            background: white;
+
+            width: 100%;
+
+            max-width: 500px;
+
+            border-radius: 12px;
+
+            padding: 25px;
+
+            position: relative;
+
+            box-shadow:
+                0 10px 40px
+                rgba(0,0,0,0.2);
+        }
+
+        .modal-close {
+
+            position: absolute;
+
+            top: 12px;
+
+            right: 18px;
+
+            font-size: 28px;
+
+            cursor: pointer;
+
+            color: #666;
+        }
+
+        .modal-title {
+
+            margin-top: 0;
+
+            margin-bottom: 20px;
+
+            padding-right: 30px;
+        }
+
+        .detail-row {
+
+            margin-bottom: 12px;
+        }
+
+        .detail-label {
+
+            font-size: 12px;
+
+            color: #777;
+
+            margin-bottom: 3px;
+
+            text-transform: uppercase;
+        }
+
+        .detail-value {
+
+            font-size: 15px;
+
+            font-weight: 500;
+        }
+
+
+        /* ==========================
+           STATUS
+           ========================== */
+
+        .status-select {
+
+            width: 100%;
+
+            padding: 10px;
+
+            border-radius: 7px;
+
+            border: 1px solid #ccc;
+
+            margin-top: 5px;
+        }
+
+
+        /* ==========================
+           BUTTONS
+           ========================== */
+
+        .modal-actions {
+
+            display: flex;
+
+            gap: 10px;
+
+            margin-top: 25px;
+
+            flex-wrap: wrap;
+        }
+
+        .btn {
+
+            padding: 10px 16px;
+
+            border-radius: 7px;
+
+            border: none;
+
+            cursor: pointer;
+
+            text-decoration: none;
+
+            font-weight: 600;
+
+            display: inline-block;
+        }
+
+        .btn-edit {
+
+            background: #3B73B9;
+
+            color: white;
+        }
+
+        .btn-delete {
+
+            background: #dc3545;
+
+            color: white;
+        }
+
+        .btn-cancel {
+
+            background: #eee;
+
+            color: #333;
+        }
+
+
+        /* ==========================
+           LEGEND
+           ========================== */
+
+        .legend {
+
+            display: flex;
+
+            gap: 20px;
+
+            flex-wrap: wrap;
+
+            margin-top: 20px;
+
+            padding-top: 15px;
+
+            border-top: 1px solid #eee;
+
+            font-size: 13px;
+        }
+
+        .legend-item {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 6px;
+        }
+
+        .legend-dot {
+
+            width: 12px;
+
+            height: 12px;
+
+            border-radius: 50%;
+        }
+
+        .scheduled {
+            background: #3B73B9;
+        }
+
+        .completed {
+            background: #28a745;
+        }
+
+        .rescheduled {
+            background: #f0ad4e;
+        }
+
+        .cancelled {
+            background: #dc3545;
+        }
+
+
+        /* ==========================
+           MOBILE
+           ========================== */
+
+        @media (max-width: 700px) {
+
+            body {
+                padding: 10px;
+            }
+
+            .page-header {
+
+                align-items: flex-start;
+
+                gap: 10px;
+
+                flex-direction: column;
+            }
+
+            .calendar-card {
+                padding: 8px;
+            }
+
+            .fc-toolbar {
+
+                flex-direction: column;
+
+                gap: 8px;
+            }
+
+            .fc-toolbar-chunk {
+
+                margin-bottom: 5px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="page-header">
+
+    <h1>
+        Cleaning Schedule
+    </h1>
+
+    <a
+        href="{% url 'add_schedule' %}"
+        class="add-button"
+    >
+        + Add Schedule
+    </a>
+
+</div>
+
+
+<div class="calendar-card">
+
+    <div id="calendar"></div>
+
+
+    <div class="legend">
+
+        <div class="legend-item">
+
+            <span class="legend-dot scheduled"></span>
+
+            Scheduled
+
+        </div>
+
+
+        <div class="legend-item">
+
+            <span class="legend-dot completed"></span>
+
+            Completed
+
+        </div>
+
+
+        <div class="legend-item">
+
+            <span class="legend-dot rescheduled"></span>
+
+            Rescheduled
+
+        </div>
+
+
+        <div class="legend-item">
+
+            <span class="legend-dot cancelled"></span>
+
+            Cancelled
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- ==========================
+     DETAILS MODAL
+     ========================== -->
+
+<div
+    id="scheduleModal"
+    class="modal"
+>
+
+    <div class="modal-content">
+
+        <span
+            class="modal-close"
+            onclick="closeModal()"
+        >
+            &times;
+        </span>
+
+
+        <h2
+            id="modalTitle"
+            class="modal-title"
+        >
+            Cleaning Schedule
+        </h2>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Customer
+            </div>
+
+            <div
+                id="modalCustomer"
+                class="detail-value"
+            ></div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Phone
+            </div>
+
+            <div
+                id="modalPhone"
+                class="detail-value"
+            ></div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Location
+            </div>
+
+            <div
+                id="modalLocation"
+                class="detail-value"
+            ></div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Address
+            </div>
+
+            <div
+                id="modalAddress"
+                class="detail-value"
+            ></div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Status
+            </div>
+
+            <select
+                id="modalStatus"
+                class="status-select"
+            >
+
+                <option value="Scheduled">
+                    Scheduled
+                </option>
+
+                <option value="Completed">
+                    Completed
+                </option>
+
+                <option value="Rescheduled">
+                    Rescheduled
+                </option>
+
+                <option value="Cancelled">
+                    Cancelled
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Notes
+            </div>
+
+            <div
+                id="modalNotes"
+                class="detail-value"
+            ></div>
+
+        </div>
+
+
+        <div class="modal-actions">
+
+            <a
+                id="editButton"
+                href="#"
+                class="btn btn-edit"
+            >
+                Edit
+            </a>
+
+
+            <button
+                id="deleteButton"
+                class="btn btn-delete"
+                type="button"
+            >
+                Delete
+            </button>
+
+
+            <button
+                class="btn btn-cancel"
+                type="button"
+                onclick="closeModal()"
+            >
+                Close
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function() {
+
+        const calendarElement =
+            document.getElementById('calendar');
+
+
+        const calendar =
+            new FullCalendar.Calendar(
+                calendarElement,
+                {
+
+                    initialView:
+                        'dayGridMonth',
+
+
+                    height: 'auto',
+
+
+                    headerToolbar: {
+
+                        left:
+                            'prev,next today',
+
+                        center:
+                            'title',
+
+                        right:
+                            'dayGridMonth,timeGridWeek,listWeek'
+
+                    },
+
+
+                    buttonText: {
+
+                        today:
+                            'Today',
+
+                        month:
+                            'Month',
+
+                        week:
+                            'Week',
+
+                        list:
+                            'List'
+
+                    },
+
+
+                    events:
+                        "{% url 'schedule_events_api' %}",
+
+
+                    editable: true,
+
+
+                    eventStartEditable: true,
+
+
+                    eventDurationEditable: false,
+
+
+                    eventClick:
+                        function(info) {
+
+                            showScheduleModal(
+                                info.event
+                            );
+
+                        },
+
+
+                    eventDrop:
+                        function(info) {
+
+                            const event =
+                                info.event;
+
+                            rescheduleEvent(
+                                event,
+                                info
+                            );
+
+                        },
+
+                }
+            );
+
+
+        calendar.render();
+
+
+        window.calendar =
+            calendar;
+
+    }
+);
+
+
+
+/* ==========================
+   SHOW MODAL
+   ========================== */
+
+function showScheduleModal(event) {
+
+    const props =
+        event.extendedProps;
+
+
+    document.getElementById(
+        'modalTitle'
+    ).textContent =
+        props.customer_name
+        || event.title;
+
+
+    document.getElementById(
+        'modalCustomer'
+    ).textContent =
+        props.customer_name
+        || '-';
+
+
+    document.getElementById(
+        'modalPhone'
+    ).textContent =
+        props.phone
+        || '-';
+
+
+    document.getElementById(
+        'modalLocation'
+    ).textContent =
+        props.location
+        || '-';
+
+
+    document.getElementById(
+        'modalAddress'
+    ).textContent =
+        props.address
+        || '-';
+
+
+    document.getElementById(
+        'modalNotes'
+    ).textContent =
+        props.notes
+        || '-';
+
+
+    const statusSelect =
+        document.getElementById(
+            'modalStatus'
+        );
+
+
+    statusSelect.value =
+        props.status;
+
+
+    statusSelect.dataset.scheduleId =
+        event.id;
+
+
+    document.getElementById(
+        'editButton'
+    ).href =
+        props.edit_url;
+
+
+    const deleteButton =
+        document.getElementById(
+            'deleteButton'
+        );
+
+
+    deleteButton.dataset.scheduleId =
+        event.id;
+
+
+    document.getElementById(
+        'scheduleModal'
+    ).classList.add('show');
+
+}
+
+
+
+/* ==========================
+   CLOSE MODAL
+   ========================== */
+
+function closeModal() {
+
+    document.getElementById(
+        'scheduleModal'
+    ).classList.remove('show');
+
+}
+
+
+
+/* ==========================
+   CHANGE STATUS
+   ========================== */
+
+document.getElementById(
+    'modalStatus'
+).addEventListener(
+    'change',
+    function() {
+
+        const scheduleId =
+            this.dataset.scheduleId;
+
+        const status =
+            this.value;
+
+
+        fetch(
+            `/schedule/${scheduleId}/status/`,
+            {
+
+                method: 'POST',
+
+                headers: {
+
+                    'Content-Type':
+                        'application/x-www-form-urlencoded',
+
+                    'X-CSRFToken':
+                        getCookie('csrftoken'),
+
+                },
+
+                body:
+                    `status=${encodeURIComponent(status)}`
+
+            }
+        )
+
+        .then(
+            response =>
+                response.json()
+        )
+
+        .then(
+            data => {
+
+                if (!data.success) {
+
+                    alert(
+                        data.error
+                        || 'Could not update status.'
+                    );
+
+                    return;
+
+                }
+
+
+                const calendar =
+                    window.calendar;
+
+
+                const event =
+                    calendar.getEventById(
+                        scheduleId
+                    );
+
+
+                if (event) {
+
+                    const colors = {
+
+                        Scheduled:
+                            '#3B73B9',
+
+                        Completed:
+                            '#28a745',
+
+                        Rescheduled:
+                            '#f0ad4e',
+
+                        Cancelled:
+                            '#dc3545',
+
+                    };
+
+
+                    event.setProp(
+                        'backgroundColor',
+                        colors[status]
+                    );
+
+
+                    event.setProp(
+                        'borderColor',
+                        colors[status]
+                    );
+
+
+                    event.setExtendedProp(
+                        'status',
+                        status
+                    );
+
+                }
+
+            }
+        )
+
+        .catch(
+            error => {
+
+                console.error(error);
+
+                alert(
+                    'Could not update status.'
+                );
+
+            }
+        );
+
+    }
+);
+
+
+
+/* ==========================
+   DELETE
+   ========================== */
+
+document.getElementById(
+    'deleteButton'
+).addEventListener(
+    'click',
+    function() {
+
+        const scheduleId =
+            this.dataset.scheduleId;
+
+
+        if (
+            !confirm(
+                'Are you sure you want to delete this schedule?'
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        fetch(
+            `/schedule/${scheduleId}/delete/`,
+            {
+
+                method: 'POST',
+
+                headers: {
+
+                    'X-CSRFToken':
+                        getCookie('csrftoken'),
+
+                }
+
+            }
+        )
+
+        .then(
+            response => {
+
+                if (
+                    response.redirected
+                ) {
+
+                    window.location.href =
+                        response.url;
+
+                } else {
+
+                    window.location.reload();
+
+                }
+
+            }
+        )
+
+        .catch(
+            error => {
+
+                console.error(error);
+
+                alert(
+                    'Could not delete schedule.'
+                );
+
+            }
+        );
+
+    }
+);
+
+
+
+/* ==========================
+   DRAG / RESCHEDULE
+   ========================== */
+
+function rescheduleEvent(
+    event,
+    info
+) {
+
+    const date =
+        event.start
+        .toISOString()
+        .split('T')[0];
+
+
+    let time = '';
+
+
+    if (event.start) {
+
+        const hours =
+            String(
+                event.start.getHours()
+            ).padStart(2, '0');
+
+
+        const minutes =
+            String(
+                event.start.getMinutes()
+            ).padStart(2, '0');
+
+
+        time =
+            `${hours}:${minutes}`;
+
+    }
+
+
+    fetch(
+        `/schedule/${event.id}/reschedule/`,
+        {
+
+            method: 'POST',
+
+            headers: {
+
+                'Content-Type':
+                    'application/x-www-form-urlencoded',
+
+                'X-CSRFToken':
+                    getCookie('csrftoken'),
+
+            },
+
+            body:
+                `date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`
+
+        }
+    )
+
+    .then(
+        response =>
+            response.json()
+    )
+
+    .then(
+        data => {
+
+            if (!data.success) {
+
+                alert(
+                    data.error
+                    || 'Could not reschedule.'
+                );
+
+
+                info.revert();
+
+                return;
+
+            }
+
+
+            event.setExtendedProp(
+                'status',
+                'Rescheduled'
+            );
+
+
+            event.setProp(
+                'backgroundColor',
+                '#f0ad4e'
+            );
+
+
+            event.setProp(
+                'borderColor',
+                '#f0ad4e'
+            );
+
+        }
+    )
+
+    .catch(
+        error => {
+
+            console.error(error);
+
+            alert(
+                'Could not reschedule.'
+            );
+
+
+            info.revert();
+
+        }
+    );
+
+}
+
+
+
+/* ==========================
+   CSRF COOKIE
+   ========================== */
+
+function getCookie(name) {
+
+    let cookieValue = null;
+
+
+    if (
+        document.cookie
+        &&
+        document.cookie !== ''
+    ) {
+
+        const cookies =
+            document.cookie.split(';');
+
+
+        for (
+            let i = 0;
+            i < cookies.length;
+            i++
+        ) {
+
+            const cookie =
+                cookies[i].trim();
+
+
+            if (
+                cookie.substring(
+                    0,
+                    name.length + 1
+                )
+                ===
+                (name + '=')
+            ) {
+
+                cookieValue =
+                    decodeURIComponent(
+                        cookie.substring(
+                            name.length + 1
+                        )
+                    );
+
+                break;
+
+            }
+
+        }
+
+    }
+
+
+    return cookieValue;
+
+}
+
+
+
+/* ==========================
+   CLOSE MODAL ON OUTSIDE CLICK
+   ========================== */
+
+document.getElementById(
+    'scheduleModal'
+).addEventListener(
+    'click',
+    function(event) {
+
+        if (
+            event.target === this
+        ) {
+
+            closeModal();
+
+        }
+
+    }
+);
+
+</script>
+
+
+</body>
+
+</html>

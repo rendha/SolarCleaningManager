@@ -1,0 +1,930 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+    /* ================================
+       SCHEDULE FORM
+       ================================ */
+
+    .schedule-form-container {
+        max-width: 700px;
+        margin: 20px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow:
+            0 2px 12px
+            rgba(0, 0, 0, 0.08);
+    }
+
+    .schedule-form-container h1 {
+        margin-top: 0;
+        margin-bottom: 25px;
+        color: #222;
+    }
+
+    .schedule-form-container .form-group {
+        margin-bottom: 18px;
+    }
+
+    .schedule-form-container label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 7px;
+    }
+
+    .schedule-form-container input,
+    .schedule-form-container select,
+    .schedule-form-container textarea {
+        width: 100%;
+        padding: 11px;
+        border: 1px solid #ccc;
+        border-radius: 7px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .schedule-form-container textarea {
+        resize: vertical;
+    }
+
+    .help {
+        font-size: 12px;
+        color: #777;
+        margin-top: 5px;
+    }
+
+    .error {
+        color: #dc3545;
+        font-size: 13px;
+        margin-top: 5px;
+    }
+
+    .success {
+        color: #198754;
+        font-size: 13px;
+        margin-top: 5px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 25px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 11px 18px;
+        border-radius: 7px;
+        border: none;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .btn-save {
+        background: #3B73B9;
+        color: white;
+    }
+
+    .btn-cancel {
+        background: #eee;
+        color: #333;
+    }
+
+    .loading {
+        font-size: 12px;
+        color: #777;
+        margin-top: 5px;
+        display: none;
+    }
+
+    .site-info {
+        margin-top: 7px;
+        padding: 9px 11px;
+        background: #f5f7fa;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #555;
+        display: none;
+    }
+
+    .new-customer-note {
+        display: none;
+        margin-top: 8px;
+        padding: 10px;
+        background: #fff8e1;
+        border-radius: 7px;
+        font-size: 13px;
+        color: #795548;
+    }
+
+    @media (max-width: 700px) {
+
+        .schedule-form-container {
+            padding: 20px;
+            margin: 10px auto;
+        }
+
+    }
+
+</style>
+
+<div class="schedule-form-container"></div>
+
+
+<body>
+
+<div class="container">
+
+    <h1>
+        {{ title }}
+    </h1>
+
+
+    <form method="POST">
+
+        {% csrf_token %}
+
+
+        {% if form.non_field_errors %}
+
+            <div class="error">
+                {{ form.non_field_errors }}
+            </div>
+
+        {% endif %}
+
+
+        <!-- =========================================
+             EXISTING CUSTOMER
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_customer">
+                Existing Customer
+            </label>
+
+            {{ form.customer }}
+
+            <div class="help">
+                Select an existing customer, or leave empty
+                if this is a new/non-customer.
+            </div>
+
+        </div>
+
+
+        <!-- =========================================
+             NEW CUSTOMER NAME
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_customer_name">
+                Customer Name
+            </label>
+
+            {{ form.customer_name }}
+
+            <div
+                id="newCustomerNote"
+                class="new-customer-note"
+            >
+                This schedule will be saved as a
+                non-customer schedule.
+            </div>
+
+        </div>
+
+
+        <!-- =========================================
+             PHONE
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_phone">
+                Phone
+            </label>
+
+            {{ form.phone }}
+
+        </div>
+
+
+        <!-- =========================================
+             SITE
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_site">
+                Site
+            </label>
+
+            {{ form.site }}
+
+            <div
+                id="siteLoading"
+                class="loading"
+            >
+                Loading customer sites...
+            </div>
+
+            <div
+                id="siteInfo"
+                class="site-info"
+            ></div>
+
+            <div class="help">
+                For an existing customer, select one of
+                their registered sites.
+                For a new customer, leave this empty and
+                enter the location/address below.
+            </div>
+
+        </div>
+
+
+        <!-- =========================================
+             LOCATION
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_location">
+                Location
+            </label>
+
+            {{ form.location }}
+
+        </div>
+
+
+        <!-- =========================================
+             ADDRESS
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_address">
+                Address
+            </label>
+
+            {{ form.address }}
+
+        </div>
+
+
+        <!-- =========================================
+             DATE
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_scheduled_date">
+                Cleaning Date
+            </label>
+
+            {{ form.scheduled_date }}
+
+        </div>
+
+
+        <!-- =========================================
+             TIME
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_scheduled_time">
+                Cleaning Time
+            </label>
+
+            {{ form.scheduled_time }}
+
+        </div>
+
+
+        <!-- =========================================
+             STATUS
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_status">
+                Status
+            </label>
+
+            {{ form.status }}
+
+        </div>
+
+
+        <!-- =========================================
+             NOTES
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="id_notes">
+                Notes
+            </label>
+
+            {{ form.notes }}
+
+        </div>
+
+
+        <!-- =========================================
+             FIELD ERRORS
+             ========================================= -->
+
+        {% for field in form %}
+
+            {% if field.errors %}
+
+                <div class="error">
+
+                    {{ field.label }}:
+                    {{ field.errors }}
+
+                </div>
+
+            {% endif %}
+
+        {% endfor %}
+
+
+        <!-- =========================================
+             BUTTONS
+             ========================================= -->
+
+        <div class="actions">
+
+            <button
+                type="submit"
+                class="btn btn-save"
+            >
+                {{ button_text }}
+            </button>
+
+
+            <a
+                href="{% url 'schedule' %}"
+                class="btn btn-cancel"
+            >
+                Cancel
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+
+<script>
+
+/* =====================================================
+   ELEMENTS
+   ===================================================== */
+
+const customerSelect =
+    document.getElementById('id_customer');
+
+const customerName =
+    document.getElementById('id_customer_name');
+
+const phone =
+    document.getElementById('id_phone');
+
+const siteSelect =
+    document.getElementById('id_site');
+
+const locationInput =
+    document.getElementById('id_location');
+
+const addressInput =
+    document.getElementById('id_address');
+
+const siteLoading =
+    document.getElementById('siteLoading');
+
+const siteInfo =
+    document.getElementById('siteInfo');
+
+const newCustomerNote =
+    document.getElementById('newCustomerNote');
+
+
+/* =====================================================
+   DJANGO API URL
+   =====================================================
+
+   This uses your Django URL name instead of
+   hard-coding the entire URL.
+*/
+
+const customerSitesUrlTemplate =
+    "{% url 'customer_sites_api' 0 %}";
+
+
+/* =====================================================
+   LOAD CUSTOMER SITES
+   ===================================================== */
+
+function loadCustomerSites(customerId, selectedSiteId = null) {
+
+    /* ---------------------------------------------
+       Clear current sites
+       --------------------------------------------- */
+
+    siteSelect.innerHTML = '';
+
+    const emptyOption =
+        document.createElement('option');
+
+    emptyOption.value = '';
+    emptyOption.textContent = '---------';
+
+    siteSelect.appendChild(emptyOption);
+
+
+    siteInfo.style.display = 'none';
+    siteInfo.textContent = '';
+
+
+    /* ---------------------------------------------
+       No customer selected
+       --------------------------------------------- */
+
+    if (!customerId) {
+
+        siteLoading.style.display = 'none';
+
+        return;
+    }
+
+
+    /* ---------------------------------------------
+       Show loading
+       --------------------------------------------- */
+
+    siteLoading.style.display = 'block';
+
+
+    /* ---------------------------------------------
+       Build API URL
+       --------------------------------------------- */
+
+    const apiUrl =
+        customerSitesUrlTemplate.replace(
+            '/0/',
+            '/' + customerId + '/'
+        );
+
+
+    console.log(
+        'Loading customer sites:',
+        apiUrl
+    );
+
+
+    /* ---------------------------------------------
+       Fetch sites
+       --------------------------------------------- */
+
+    fetch(apiUrl)
+
+        .then(function(response) {
+
+            if (!response.ok) {
+
+                throw new Error(
+                    'HTTP error: ' + response.status
+                );
+
+            }
+
+            return response.json();
+
+        })
+
+        .then(function(data) {
+
+            console.log(
+                'Customer sites response:',
+                data
+            );
+
+
+            siteLoading.style.display = 'none';
+
+
+            if (
+                !data.sites ||
+                data.sites.length === 0
+            ) {
+
+                const option =
+                    document.createElement('option');
+
+                option.value = '';
+
+                option.textContent =
+                    'No registered sites';
+
+                siteSelect.appendChild(option);
+
+                return;
+            }
+
+
+            /* -----------------------------------------
+               Add sites
+               ----------------------------------------- */
+
+            data.sites.forEach(function(site) {
+
+                const option =
+                    document.createElement('option');
+
+                option.value = site.id;
+
+
+                /*
+                 * Prefer location.
+                 * If location is empty, use address.
+                 */
+
+                let siteName =
+                    site.location ||
+                    site.address ||
+                    ('Site ' + site.id);
+
+
+                if (
+                    site.solar_kw &&
+                    site.solar_kw.trim() !== ''
+                ) {
+
+                    siteName +=
+                        ' - ' +
+                        site.solar_kw +
+                        ' kW';
+
+                }
+
+
+                option.textContent =
+                    siteName;
+
+
+                /*
+                 * Store information in option
+                 */
+
+                option.dataset.location =
+                    site.location || '';
+
+                option.dataset.address =
+                    site.address || '';
+
+                option.dataset.solarKw =
+                    site.solar_kw || '';
+
+
+                siteSelect.appendChild(option);
+
+            });
+
+
+            /* -----------------------------------------
+               Select original site when editing
+               ----------------------------------------- */
+
+            if (selectedSiteId) {
+
+                siteSelect.value =
+                    String(selectedSiteId);
+
+            }
+
+
+            /*
+             * If there is only one site and no
+             * existing selection, select it.
+             */
+
+            if (
+                !selectedSiteId &&
+                data.sites.length === 1
+            ) {
+
+                siteSelect.value =
+                    String(data.sites[0].id);
+
+            }
+
+
+            /*
+             * Trigger site change so that
+             * location/address are populated.
+             */
+
+            if (siteSelect.value) {
+
+                siteSelect.dispatchEvent(
+                    new Event('change')
+                );
+
+            }
+
+        })
+
+        .catch(function(error) {
+
+            console.error(
+                'SITE LOADING ERROR:',
+                error
+            );
+
+
+            siteLoading.style.display = 'none';
+
+
+            const option =
+                document.createElement('option');
+
+            option.value = '';
+
+            option.textContent =
+                'Could not load sites';
+
+            siteSelect.appendChild(option);
+
+
+            siteInfo.style.display = 'block';
+
+            siteInfo.textContent =
+                'Could not load this customer\'s sites. ' +
+                'Please check the server/API.';
+
+        });
+
+}
+
+
+/* =====================================================
+   CUSTOMER CHANGE
+   ===================================================== */
+
+customerSelect.addEventListener(
+    'change',
+    function() {
+
+        const customerId =
+            this.value;
+
+
+        /*
+         * Existing customer
+         */
+
+        if (customerId) {
+
+            newCustomerNote.style.display =
+                'none';
+
+
+            loadCustomerSites(
+                customerId
+            );
+
+        }
+
+
+        /*
+         * New / non-customer
+         */
+
+        else {
+
+            newCustomerNote.style.display =
+                'block';
+
+
+            loadCustomerSites('');
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   SITE CHANGE
+   ===================================================== */
+
+siteSelect.addEventListener(
+    'change',
+    function() {
+
+        const option =
+            this.options[
+                this.selectedIndex
+            ];
+
+
+        if (
+            !option ||
+            !option.value
+        ) {
+
+            siteInfo.style.display =
+                'none';
+
+            return;
+
+        }
+
+
+        /* ---------------------------------------------
+           Get location
+           --------------------------------------------- */
+
+        const location =
+            option.dataset.location || '';
+
+
+        /* ---------------------------------------------
+           Get address
+           --------------------------------------------- */
+
+        const address =
+            option.dataset.address || '';
+
+
+        /* ---------------------------------------------
+           Fill location
+           --------------------------------------------- */
+
+        if (location) {
+
+            locationInput.value =
+                location;
+
+        }
+
+
+        /* ---------------------------------------------
+           Fill address
+           --------------------------------------------- */
+
+        if (address) {
+
+            addressInput.value =
+                address;
+
+        }
+
+
+        /* ---------------------------------------------
+           Site information
+           --------------------------------------------- */
+
+        let info = '';
+
+        if (location) {
+
+            info +=
+                'Location: ' +
+                location;
+
+        }
+
+        if (address) {
+
+            if (info) {
+                info += ' | ';
+            }
+
+            info +=
+                'Address: ' +
+                address;
+
+        }
+
+        if (option.dataset.solarKw) {
+
+            if (info) {
+                info += ' | ';
+            }
+
+            info +=
+                'Solar: ' +
+                option.dataset.solarKw +
+                ' kW';
+
+        }
+
+
+        if (info) {
+
+            siteInfo.textContent =
+                info;
+
+            siteInfo.style.display =
+                'block';
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   INITIAL PAGE LOAD
+   ===================================================== */
+
+document.addEventListener(
+    'DOMContentLoaded',
+    function() {
+
+        /*
+         * IMPORTANT:
+         *
+         * If the customer is already selected
+         * when the page opens, manually load
+         * their sites.
+         */
+
+        const initialCustomerId =
+            customerSelect.value;
+
+
+        /*
+         * Django will put the current site's ID
+         * here when editing.
+         */
+
+        const initialSiteId =
+            siteSelect.value;
+
+
+        console.log(
+            'Initial customer:',
+            initialCustomerId
+        );
+
+        console.log(
+            'Initial site:',
+            initialSiteId
+        );
+
+
+        if (initialCustomerId) {
+
+            loadCustomerSites(
+                initialCustomerId,
+                initialSiteId
+            );
+
+        }
+        else {
+
+            newCustomerNote.style.display =
+                'block';
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   FORM DEBUGGING
+   ===================================================== */
+
+console.log(
+    'Customer select:',
+    customerSelect
+);
+
+console.log(
+    'Site select:',
+    siteSelect
+);
+
+</script>
+
+
+</body>
+
+</html>

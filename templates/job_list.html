@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2>All Cleaning Records</h2>
+    </div>
+    <div class="col-md-6">
+        <form method="get" class="d-flex">
+            <input type="text" name="q" class="form-control me-2" placeholder="Search customer, site, or kW..." value="{{ query }}">
+            <button type="submit" class="btn btn-outline-dark">Search</button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm p-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Customer / Site</th>
+                    <th>Size</th>
+                    <th>Status</th>
+                    <th>Revenue</th>
+                    <th>Expenses</th>
+                    <th>Net Profit/Loss</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr>
+                    <td>{{ job.date }}</td>
+                    <td>
+                        <strong>{{ job.customer.name }}</strong><br>
+                        <small class="text-muted">{{ job.site.location }}</small>
+                    </td>
+                    <td>{{ job.site.solar_kw}}kW</td>
+                    <td>
+                        {% if job.is_free %}
+                            <span class="badge bg-info text-dark">Free Promo</span>
+                        {% elif job.payment_status == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Unpaid</span>
+                        {% endif %}
+                    </td>
+                    <td>Rs{{ job.revenue }}</td>
+                    <td>
+                        Rs{{ job.total_expenses }}
+                        <button class="btn btn-sm btn-link p-0 ms-1" type="button" data-bs-toggle="collapse" data-bs-target="#exp-{{ job.id }}">
+                            (View details)
+                        </button>
+                        <div class="collapse mt-1" id="exp-{{ job.id }}">
+                            <ul class="list-unstyled small text-muted mb-0">
+                                {% for exp in job.expenses.all %}
+                                    <li>- {{ exp.expense_name }}: Rs{{ exp.cost }}</li>
+                                {% empty %}
+                                    <li>No manual expenses</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </td>
+                    <td class="fw-bold {% if job.net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        Rs{{ job.net_profit }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">No cleaning records found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

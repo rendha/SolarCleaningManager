@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h1 class="mb-1">
+                📊 Monthly Reports
+            </h1>
+
+            <p class="text-muted mb-0">
+                Complete financial and cleaning history
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- ALL TIME SUMMARY -->
+    <!-- ========================================= -->
+
+    <h4 class="mb-3">
+        All-Time Summary
+    </h4>
+
+
+    <div class="row g-3 mb-5">
+
+
+        <!-- REVENUE -->
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted">
+                        Total Revenue
+                    </div>
+
+                    <h3 class="text-success mt-2">
+                        ₹{{ all_time_revenue|floatformat:2 }}
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- EXPENSES -->
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted">
+                        Total Expenses
+                    </div>
+
+                    <h3 class="text-danger mt-2">
+                        ₹{{ all_time_expenses|floatformat:2 }}
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- PROFIT -->
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted">
+                        Net Profit
+                    </div>
+
+                    <h3 class="text-primary mt-2">
+                        ₹{{ all_time_profit|floatformat:2 }}
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- OUTSTANDING -->
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted">
+                        Outstanding
+                    </div>
+
+                    <h3 class="text-warning mt-2">
+                        ₹{{ all_time_outstanding|floatformat:2 }}
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ========================================= -->
+    <!-- ALL TIME COUNTS -->
+    <!-- ========================================= -->
+
+    <div class="row g-3 mb-5">
+
+
+        <div class="col-md-3">
+
+            <div class="card border-0 bg-light">
+
+                <div class="card-body text-center">
+
+                    <h2>
+                        {{ all_time_cleanings }}
+                    </h2>
+
+                    <div class="text-muted">
+                        Total Cleanings
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card border-0 bg-light">
+
+                <div class="card-body text-center">
+
+                    <h2 class="text-success">
+                        {{ all_time_paid }}
+                    </h2>
+
+                    <div class="text-muted">
+                        Paid
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card border-0 bg-light">
+
+                <div class="card-body text-center">
+
+                    <h2 class="text-danger">
+                        {{ all_time_unpaid }}
+                    </h2>
+
+                    <div class="text-muted">
+                        Unpaid
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <div class="card border-0 bg-light">
+
+                <div class="card-body text-center">
+
+                    <h2 class="text-secondary">
+                        {{ all_time_free }}
+                    </h2>
+
+                    <div class="text-muted">
+                        Free Cleanings
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ========================================= -->
+    <!-- MONTHLY REPORTS -->
+    <!-- ========================================= -->
+
+    <h4 class="mb-3">
+        Monthly Reports
+    </h4>
+
+
+    {% if reports %}
+
+        <div class="row g-4">
+
+            {% for report in reports %}
+
+                <div class="col-md-6 col-lg-4">
+
+                    <div class="card shadow-sm h-100">
+
+                        <div class="card-body">
+
+
+                            <h4 class="mb-1">
+
+                                {{ report.month_name }}
+
+                            </h4>
+
+
+                            <div class="text-muted mb-3">
+
+                                {{ report.cleanings }}
+                                cleaning{{ report.cleanings|pluralize }}
+
+                            </div>
+
+
+                            <div class="mb-2">
+
+                                <strong>
+                                    Revenue:
+                                </strong>
+
+                                <span class="text-success">
+                                    ₹{{ report.revenue|floatformat:2 }}
+                                </span>
+
+                            </div>
+
+
+                            <div class="mb-2">
+
+                                <strong>
+                                    Expenses:
+                                </strong>
+
+                                <span class="text-danger">
+                                    ₹{{ report.expenses|floatformat:2 }}
+                                </span>
+
+                            </div>
+
+
+                            <div class="mb-3">
+
+                                <strong>
+                                    Profit:
+                                </strong>
+
+                                <span class="text-primary">
+                                    ₹{{ report.profit|floatformat:2 }}
+                                </span>
+
+                            </div>
+
+
+                            <hr>
+
+
+                            <div class="d-flex justify-content-between mb-2">
+
+                                <span>
+                                    🟢 Paid
+                                </span>
+
+                                <strong>
+                                    {{ report.paid_count }}
+                                </strong>
+
+                            </div>
+
+
+                            <div class="d-flex justify-content-between mb-2">
+
+                                <span>
+                                    🔴 Unpaid
+                                </span>
+
+                                <strong>
+                                    {{ report.unpaid_count }}
+                                </strong>
+
+                            </div>
+
+
+                            <div class="d-flex justify-content-between mb-3">
+
+                                <span>
+                                    🎁 Free
+                                </span>
+
+                                <strong>
+                                    {{ report.free_count }}
+                                </strong>
+
+                            </div>
+
+
+                            {% if report.outstanding > 0 %}
+
+                                <div class="alert alert-warning py-2">
+
+                                    Outstanding:
+
+                                    <strong>
+                                        ₹{{ report.outstanding|floatformat:2 }}
+                                    </strong>
+
+                                </div>
+
+                            {% endif %}
+
+
+                            <a
+                                href="{% url 'monthly_report_detail' report.month %}"
+                                class="btn btn-primary w-100"
+                            >
+
+                                View Month Details →
+
+                            </a>
+
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+
+    {% else %}
+
+        <div class="alert alert-info">
+
+            No cleaning records found yet.
+
+        </div>
+
+    {% endif %}
+
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-md-9">
+
+        <div class="card shadow-sm p-4">
+
+            <h3 class="mb-4">
+                Record Solar Panel Cleaning
+            </h3>
+
+            <form method="post">
+
+
+            {% csrf_token %}
+
+{% if form.errors %}
+    <div class="alert alert-danger">
+        <strong>Please fix the following errors:</strong>
+        {{ form.errors }}
+    </div>
+{% endif %}
+
+<form method="post">
+
+    {% csrf_token %}
+
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            <strong>Please fix the following errors:</strong>
+            {{ form.errors }}
+        </div>
+    {% endif %}
+
+    {% if formset.errors %}
+        <div class="alert alert-danger">
+            <strong>Expense errors:</strong>
+            {{ formset.errors }}
+        </div>
+    {% endif %}
+
+    {{ form.non_field_errors }}
+
+
+                <!-- CUSTOMER -->
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-bold">
+                        Customer
+                    </label>
+
+                    {{ form.customer }}
+
+                    {% if form.customer.errors %}
+                        <div class="text-danger">
+                            {{ form.customer.errors }}
+                        </div>
+                    {% endif %}
+
+                </div>
+
+
+                <!-- SITE -->
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-bold">
+                        Site / Location
+                    </label>
+
+                    {{ form.site }}
+
+                    <small class="text-muted">
+                        Only sites belonging to the selected customer
+                        will appear.
+                    </small>
+
+                    {% if form.site.errors %}
+                        <div class="text-danger">
+                            {{ form.site.errors }}
+                        </div>
+                    {% endif %}
+
+                </div>
+
+
+                <!-- CLEANING DETAILS -->
+
+                <div class="row">
+
+                    <div class="col-md-4 mb-3">
+
+                        <label class="form-label">
+                            Cleaning Number
+                        </label>
+
+                        {{ form.cleaning_number }}
+
+                    </div>
+
+
+                    <div class="col-md-4 mb-3">
+
+                        <label class="form-label">
+                            Payment Status
+                        </label>
+
+                        {{ form.payment_status }}
+
+                    </div>
+
+
+                    <div class="col-md-4 mb-3">
+
+                        <label class="form-label">
+                            Date
+                        </label>
+
+                        {{ form.date }}
+
+                    </div>
+
+                </div>
+
+
+                <!-- FREE CLEANING -->
+
+                <div class="mb-4">
+
+                    <div class="form-check">
+
+                        {{ form.is_free }}
+
+                        <label class="form-check-label fw-bold text-danger">
+                            First Cleaning Free
+                        </label>
+
+                    </div>
+
+                    <small class="text-muted">
+                        Tick this if the customer is receiving the free
+                        first cleaning.
+                    </small>
+
+                </div>
+
+
+                <!-- MANUAL RATE -->
+
+                <div class="mb-4">
+
+                    <label class="form-label">
+                        Manual Rate Override
+                    </label>
+
+                    {{ form.manual_rate_override }}
+
+                    <small class="text-muted">
+                        Leave empty to use the automatic rate card.
+                    </small>
+
+                </div>
+
+
+                <hr>
+
+
+                <!-- EXPENSES -->
+
+                <h5 class="mb-2">
+                    Cleaning Expenses
+                </h5>
+
+                <p class="text-muted">
+                    Enter any expenses manually.
+                </p>
+
+
+                {{ formset.management_form }}
+
+
+                <div id="expense-formset">
+
+                    {% for exp_form in formset %}
+
+                        <div class="row expense-row mb-2">
+
+                            <div class="col-md-7">
+
+                                {{ exp_form.expense_name }}
+
+                            </div>
+
+                            <div class="col-md-4">
+
+                                {{ exp_form.cost }}
+
+                            </div>
+
+                            <div class="col-md-1">
+
+                                {% if exp_form.DELETE %}
+                                    {{ exp_form.DELETE }}
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+
+               <button
+    type="submit"
+    class="btn btn-danger w-100 mt-4 py-2"
+    onclick="console.log('SAVE BUTTON CLICKED');"
+>
+                    Save Cleaning Job & Calculate Profit
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+const customerSelect = document.getElementById('id_customer');
+const siteSelect = document.getElementById('id_site');
+
+customerSelect.addEventListener('change', function() {
+
+    const customerId = this.value;
+
+    siteSelect.innerHTML =
+        '<option value="">Loading sites...</option>';
+
+    if (!customerId) {
+
+        siteSelect.innerHTML =
+            '<option value="">Select customer first</option>';
+
+        return;
+    }
+
+
+    fetch(`/api/customer/${customerId}/sites/`)
+        .then(response => response.json())
+        .then(data => {
+
+            siteSelect.innerHTML =
+                '<option value="">Select site</option>';
+
+            data.sites.forEach(site => {
+
+                const option =
+                    document.createElement('option');
+
+                option.value = site.id;
+
+                option.textContent =
+                    site.location +
+                    (site.solar_kw
+                        ? ' - ' + site.solar_kw + ' kW'
+                        : '');
+
+                siteSelect.appendChild(option);
+
+            });
+
+        })
+        .catch(error => {
+
+            console.error(error);
+
+            siteSelect.innerHTML =
+                '<option value="">Unable to load sites</option>';
+
+        });
+
+});
+
+</script>
+
+{% endblock %}
