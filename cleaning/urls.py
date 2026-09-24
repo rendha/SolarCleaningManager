@@ -145,4 +145,10 @@ urlpatterns = [
         name='canvassing'
     ),
 
+    path(
+    'job/<int:pk>/payment-status/',
+    views.update_payment_status_view,
+    name='update_payment_status'
+    ),
+
 ]

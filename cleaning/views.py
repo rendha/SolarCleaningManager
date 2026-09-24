@@ -210,6 +210,31 @@ def job_list_view(request):
         }
     )
 
+@require_POST
+def update_payment_status_view(request, pk):
+
+    job = get_object_or_404(
+        CleaningJob,
+        pk=pk
+    )
+
+    new_status = request.POST.get('payment_status')
+
+    if new_status not in ['Paid', 'Unpaid']:
+
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid payment status.'
+        }, status=400)
+
+    job.payment_status = new_status
+    job.save(update_fields=['payment_status'])
+
+    return JsonResponse({
+        'success': True,
+        'payment_status': job.payment_status
+    })  
+
 def edit_job_view(request, pk):
     job = get_object_or_404(CleaningJob, pk=pk)
     if request.method == 'POST':

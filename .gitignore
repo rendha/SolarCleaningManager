@@ -24,3 +24,5 @@ staticfiles/
 # Windows
 Thumbs.db
 Desktop.ini
+cleaning_data.json
+db_backup_before_postgres.sqlite3

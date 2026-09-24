@@ -36,14 +36,59 @@
                     </td>
                     <td>{{ job.site.solar_kw}}kW</td>
                     <td>
-                        {% if job.is_free %}
-                            <span class="badge bg-info text-dark">Free Promo</span>
-                        {% elif job.payment_status == 'Paid' %}
-                            <span class="badge bg-success">Paid</span>
-                        {% else %}
-                            <span class="badge bg-warning text-dark">Unpaid</span>
-                        {% endif %}
-                    </td>
+
+    {% if job.is_free %}
+
+        <span class="badge bg-info text-dark">
+            Free Promo
+        </span>
+
+    {% else %}
+
+        <form
+            method="POST"
+            action="{% url 'update_payment_status' job.id %}"
+            class="payment-status-form"
+        >
+
+            {% csrf_token %}
+
+            <select
+                name="payment_status"
+                class="form-select form-select-sm payment-status-select
+                {% if job.payment_status == 'Paid' %}
+                    border-success text-success
+                {% else %}
+                    border-warning text-dark
+                {% endif %}"
+                onchange="this.form.submit()"
+            >
+
+                <option
+                    value="Unpaid"
+                    {% if job.payment_status == 'Unpaid' %}
+                        selected
+                    {% endif %}
+                >
+                    Unpaid
+                </option>
+
+                <option
+                    value="Paid"
+                    {% if job.payment_status == 'Paid' %}
+                        selected
+                    {% endif %}
+                >
+                    Paid
+                </option>
+
+            </select>
+
+        </form>
+
+    {% endif %}
+
+</td>
                     <td>Rs{{ job.revenue }}</td>
                     <td>
                         Rs{{ job.total_expenses }}

@@ -251,6 +251,11 @@ class CleaningSchedule(models.Model):
         blank=True
     )
 
+    solar_kw = models.CharField(
+        max_length=20,
+        blank=True
+    )
+
     # Existing customer site - optional for non-customer schedules.
     site = models.ForeignKey(
         Site,

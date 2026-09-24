@@ -251,6 +251,26 @@
 
 
         <!-- =========================================
+     SOLAR SYSTEM SIZE
+     ========================================= -->
+
+<div class="form-group">
+
+    <label for="id_solar_kw">
+        Solar System Size (kW)
+    </label>
+
+    {{ form.solar_kw }}
+
+    <div class="help">
+        For an existing customer, this will be filled
+        from the selected site. For a non-existing
+        customer, enter the system size manually.
+    </div>
+
+</div>
+
+        <!-- =========================================
              LOCATION
              ========================================= -->
 
@@ -412,6 +432,9 @@ const locationInput =
 
 const addressInput =
     document.getElementById('id_address');
+
+const solarKwInput =
+    document.getElementById('id_solar_kw')    
 
 const siteLoading =
     document.getElementById('siteLoading');
@@ -794,6 +817,20 @@ siteSelect.addEventListener(
 
         }
 
+        /* ---------------------------------------------
+   Fill solar system size
+   --------------------------------------------- */
+
+const solarKw =
+    option.dataset.solarKw || '';
+
+if (solarKwInput && solarKw) {
+
+    solarKwInput.value =
+        solarKw;
+
+}
+
 
         /* ---------------------------------------------
            Site information
@@ -928,3 +965,5 @@ console.log(
 </body>
 
 </html>
+
+{% endblock %}

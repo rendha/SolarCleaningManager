@@ -19,22 +19,36 @@ class CleaningJobForm(forms.ModelForm):
         ]
 
         widgets = {
-            'customer': forms.Select(attrs={'class': 'form-control'}),
-            'site': forms.Select(attrs={'class': 'form-control'}),
-            'cleaning_number': forms.NumberInput(attrs={'class': 'form-control'}),
-            'payment_status': forms.Select(attrs={'class': 'form-control'}),
+            'customer': forms.Select(
+                attrs={'class': 'form-control'}
+            ),
+
+            'site': forms.Select(
+                attrs={'class': 'form-control'}
+            ),
+
+            'cleaning_number': forms.NumberInput(
+                attrs={'class': 'form-control'}
+            ),
+
+            'payment_status': forms.Select(
+                attrs={'class': 'form-control'}
+            ),
+
             'date': forms.DateInput(
                 attrs={
                     'type': 'date',
                     'class': 'form-control'
                 }
             ),
+
             'manual_rate_override': forms.NumberInput(
                 attrs={
                     'class': 'form-control',
                     'placeholder': 'Optional'
                 }
             ),
+
             'is_free': forms.CheckboxInput(
                 attrs={'class': 'form-check-input'}
             ),
@@ -81,6 +95,7 @@ class CleaningScheduleForm(forms.ModelForm):
             'customer_name',
             'phone',
             'site',
+            'solar_kw',
             'location',
             'address',
             'scheduled_date',
@@ -95,6 +110,7 @@ class CleaningScheduleForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'id': 'id_customer',
+                    'data-customer-search': 'true,'
                 }
             ),
 
@@ -110,6 +126,13 @@ class CleaningScheduleForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'placeholder': 'Phone number',
+                }
+            ),
+
+            'solar_kw': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'e.g. 3, 5, 7.2, 10',
                 }
             ),
 

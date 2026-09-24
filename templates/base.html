@@ -105,6 +105,83 @@
 
     }
 
+    /* =====================================================
+   CUSTOMER SEARCH
+   ===================================================== */
+
+.customer-search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.customer-search-input {
+    width: 100%;
+    min-height: 38px;
+}
+
+.customer-search-results {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+
+    background: #ffffff;
+
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.12);
+
+    max-height: 300px;
+
+    overflow-y: auto;
+
+    z-index: 2000;
+
+    display: none;
+}
+
+.customer-search-result {
+    display: block;
+
+    width: 100%;
+
+    padding: 10px 12px;
+
+    background: #ffffff;
+
+    border: none;
+
+    border-bottom: 1px solid #eeeeee;
+
+    text-align: left;
+
+    cursor: pointer;
+}
+
+.customer-search-result:hover,
+.customer-search-result:focus {
+    background: #f1f6fb;
+}
+
+.customer-result-name {
+    font-weight: 600;
+    color: #222222;
+}
+
+.customer-result-phone {
+    margin-top: 3px;
+    font-size: 12px;
+    color: #777777;
+}
+
+.customer-search-no-results {
+    padding: 12px;
+    color: #777777;
+    font-size: 14px;
+}
+
 </style>
 
 
@@ -332,6 +409,8 @@ if ("serviceWorker" in navigator) {
 
 }
 </script>
+
+<script src="{% static 'js/customer-search.js' %}"></script>
 
 </body>
 
