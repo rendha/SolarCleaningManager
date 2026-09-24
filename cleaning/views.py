@@ -11,6 +11,9 @@ from django.contrib import messages
 from django.db import transaction
 from django.views.decorators.http import require_POST
 
+def health_check(request):
+    return JsonResponse({"status": "ok"})
+
 def dashboard_view(request):
     selected_month = request.GET.get('month')
     
