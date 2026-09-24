@@ -144,5 +144,6 @@ urlpatterns = [
         views.canvassing_view,
         name='canvassing'
     ),
+    path("health/", views.health_check, name="health_check"),
 
 ]
