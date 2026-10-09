@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+
+    <h3 class="fw-bold mb-0">My Jobs</h3>
+
+    <span class="badge bg-dark fs-6">
+        {{ schedules|length }} pending
+    </span>
+
+</div>
+
+
+{% for schedule in schedules %}
+
+    <div
+        class="card shadow-sm border-0 mb-3
+            {% if schedule.scheduled_date < today %}border-start border-4 border-danger
+            {% elif schedule.scheduled_date == today %}border-start border-4 border-primary{% endif %}"
+        id="schedule-{{ schedule.id }}"
+    >
+
+        <div class="card-body">
+
+            <!-- Date / time / badge -->
+            <div class="d-flex justify-content-between align-items-start mb-2">
+
+                <div>
+
+                    <div class="fw-semibold">
+
+                        {% if schedule.scheduled_date == today %}
+                            Today
+                        {% else %}
+                            {{ schedule.scheduled_date|date:"D, d M Y" }}
+                        {% endif %}
+
+                        {% if schedule.scheduled_time %}
+                            · {{ schedule.scheduled_time|time:"g:i A" }}
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+                {% if schedule.scheduled_date < today %}
+                    <span class="badge bg-danger">Overdue</span>
+                {% elif schedule.status == 'Rescheduled' %}
+                    <span class="badge bg-warning text-dark">Rescheduled</span>
+                {% else %}
+                    <span class="badge bg-primary">Scheduled</span>
+                {% endif %}
+
+            </div>
+
+
+            <!-- Customer -->
+            <h5 class="fw-bold mb-1">
+                {{ schedule.get_customer_name }}
+            </h5>
+
+            {% with loc=schedule.get_location %}
+                {% if loc %}
+                    <div class="text-muted">📍 {{ loc }}</div>
+                {% endif %}
+            {% endwith %}
+
+            {% if schedule.site and schedule.site.address %}
+                <div class="small text-muted">{{ schedule.site.address }}</div>
+            {% elif schedule.address %}
+                <div class="small text-muted">{{ schedule.address }}</div>
+            {% endif %}
+
+            {% if schedule.site and schedule.site.solar_kw %}
+                <div class="small mt-1">☀️ {{ schedule.site.solar_kw }} kW</div>
+            {% elif schedule.solar_kw %}
+                <div class="small mt-1">☀️ {{ schedule.solar_kw }} kW</div>
+            {% endif %}
+
+            {% if schedule.notes %}
+                <div class="alert alert-light border small py-2 mt-2 mb-0">
+                    📝 {{ schedule.notes }}
+                </div>
+            {% endif %}
+
+
+            <!-- Actions -->
+            <div class="d-flex flex-wrap gap-2 mt-3">
+
+                {% if schedule.phone %}
+
+                    <a href="tel:{{ schedule.phone }}" class="btn btn-outline-success btn-sm">
+                        📞 Call
+                    </a>
+
+                {% elif schedule.customer and schedule.customer.phone %}
+
+                    <a href="tel:{{ schedule.customer.phone }}" class="btn btn-outline-success btn-sm">
+                        📞 Call
+                    </a>
+
+                {% endif %}
+
+
+                {% if schedule.site and schedule.site.google_map_link %}
+
+                    <a
+                        href="{{ schedule.site.google_map_link }}"
+                        target="_blank"
+                        rel="noopener"
+                        class="btn btn-outline-primary btn-sm"
+                    >
+                        🗺️ Map
+                    </a>
+
+                {% endif %}
+
+
+                {% if schedule.site %}
+
+                    <!-- Existing customer with a site: record the cleaning -->
+                    <a
+                        href="{% url 'employee_add_job' %}?schedule={{ schedule.id }}"
+                        class="btn btn-dark btn-sm ms-auto"
+                    >
+                        ✅ Done – Record Cleaning
+                    </a>
+
+                {% else %}
+
+                    <!-- New / non-customer: just mark it completed -->
+                    <button
+                        type="button"
+                        class="btn btn-dark btn-sm ms-auto"
+                        onclick="markCompleted({{ schedule.id }}, this)"
+                    >
+                        ✅ Mark Completed
+                    </button>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+{% empty %}
+
+    <div class="text-center text-muted py-5">
+
+        <div style="font-size: 40px;">🎉</div>
+
+        <p class="mt-2 mb-0">No pending jobs right now.</p>
+
+    </div>
+
+{% endfor %}
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script>
+
+function markCompleted(scheduleId, button) {
+
+    if (!confirm("Mark this job as completed?")) {
+        return;
+    }
+
+    button.disabled = true;
+
+    fetch(`/schedule/${scheduleId}/status/`, {
+
+        method: "POST",
+
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+
+        body: "status=Completed",
+
+    })
+
+        .then(response => response.json())
+
+        .then(data => {
+
+            if (data.success) {
+
+                document
+                    .getElementById(`schedule-${scheduleId}`)
+                    .remove();
+
+            } else {
+
+                alert(data.error || "Could not update status.");
+
+                button.disabled = false;
+
+            }
+
+        })
+
+        .catch(() => {
+
+            alert("Network error. Please try again.");
+
+            button.disabled = false;
+
+        });
+
+}
+
+</script>
+
+{% endblock %}

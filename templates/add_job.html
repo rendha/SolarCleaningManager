@@ -1,5 +1,26 @@
 {% extends 'base.html' %}
 
+{% block extra_js %}
+<script>
+(function () {
+    const toggle = document.getElementById("id_new_customer");
+    if (!toggle) return;
+
+    const newBox = document.getElementById("new-customer-fields");
+    const existingBox = document.getElementById("existing-customer-fields");
+
+    function update() {
+        const on = toggle.checked;
+        newBox.style.display = on ? "" : "none";
+        if (existingBox) existingBox.style.display = on ? "none" : "";
+    }
+
+    toggle.addEventListener("change", update);
+    update();   // keeps the right section open if the form reloads with errors
+})();
+</script>
+{% endblock %}
+
 {% block content %}
 
 <div class="row justify-content-center">
@@ -44,6 +65,41 @@
 
     {{ form.non_field_errors }}
 
+    {% if not form.instance.pk %}
+
+<div class="form-check form-switch mb-3">
+    {{ form.new_customer }}
+    <label class="form-check-label fw-semibold" for="id_new_customer">
+        Not an existing customer (new / one-time)
+    </label>
+</div>
+
+<div id="new-customer-fields" class="border rounded p-3 mb-3 bg-light" style="display:none;">
+
+    <div class="row g-3">
+
+        {% for field in form %}
+            {% if field.name in 'new_customer_name new_phone new_location new_address new_solar_kw new_map_link' and field.name != 'new_customer' %}
+                <div class="col-md-6">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endif %}
+
+{% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+{% endif %}
+<div id="existing-customer-fields">
 
                 <!-- CUSTOMER -->
 
@@ -85,6 +141,7 @@
                         </div>
                     {% endif %}
 
+                </div>
                 </div>
 
 

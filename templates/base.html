@@ -89,6 +89,41 @@
 
 
     /* ============================= */
+    /* LOGOUT BUTTON (looks like a nav link) */
+    /* ============================= */
+
+    .nav-logout-button {
+
+        background: none;
+
+        border: none;
+
+        padding: 0.5rem 0;
+
+        color: rgba(255, 255, 255, 0.55);
+
+        cursor: pointer;
+
+    }
+
+    .nav-logout-button:hover {
+
+        color: #ffffff;
+
+    }
+
+    @media (min-width: 992px) {
+
+        .nav-logout-button {
+
+            padding: 0.5rem;
+
+        }
+
+    }
+
+
+    /* ============================= */
     /* MOBILE */
     /* ============================= */
 
@@ -184,63 +219,27 @@
 
 </style>
 
-
+{% block extra_head %}{% endblock %}
 
 </head>
 
 
 <body class="bg-light">
 
-<a href="javascript:history.back();" class="global-back-button">
-    <span class="arrow">←</span>
-    Back
-</a>   
 
-
-    <!-- ============================= -->
-    <!-- MESSAGES -->
-    <!-- ============================= -->
-
-    {% if messages %}
-
-        <div class="container mt-3">
-
-            {% for message in messages %}
-
-                <div
-                    class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show"
-                    role="alert"
-                >
-
-                    {{ message }}
-
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="alert"
-                    ></button>
-
-                </div>
-
-            {% endfor %}
-
-        </div>
-
-    {% endif %}
-
-
+{% if user.is_authenticated %}
 
     <!-- ============================= -->
     <!-- NAVIGATION -->
     <!-- ============================= -->
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
 
         <div class="container">
 
             <a
                 class="navbar-brand fw-bold"
-                href="{% url 'dashboard' %}"
+                href="{% url 'home' %}"
             >
                 ☀️ SolarClean Manager
             </a>
@@ -266,86 +265,90 @@
                 <ul class="navbar-nav ms-auto">
 
 
+                    {% if user.is_staff %}
+
+                        <!-- ===== OWNER MENU ===== -->
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard' %}">
+                                Dashboard
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'schedule' %}">
+                                Schedule
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'add_job' %}">
+                                Add Cleaning
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'job_list' %}">
+                                All Cleanings
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'monthly_reports' %}">
+                                Monthly Reports
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'customer_list' %}">
+                                Customers
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'canvassing' %}">
+                                Location Search
+                            </a>
+                        </li>
+
+                    {% else %}
+
+                        <!-- ===== EMPLOYEE MENU ===== -->
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'my_schedule' %}">
+                                My Jobs
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'employee_add_job' %}">
+                                Record Cleaning
+                            </a>
+                        </li>
+
+                    {% endif %}
+
+
+                    <!-- Logout must be a POST in Django 5 -->
                     <li class="nav-item">
 
-                        <a
-                            class="nav-link"
-                            href="{% url 'dashboard' %}"
+                        <form
+                            method="post"
+                            action="{% url 'logout' %}"
+                            class="d-inline"
                         >
-                            Dashboard
-                        </a>
 
-                    </li>
+                            {% csrf_token %}
 
+                            <button
+                                type="submit"
+                                class="nav-logout-button"
+                            >
+                                Logout ({{ user.get_full_name|default:user.username }})
+                            </button>
 
-                    <li class="nav-item">
-
-                        <a
-                            class="nav-link"
-                            href="{% url 'schedule' %}"
-                        >
-                            Schedule
-                        </a>
-
-                    </li>
-
-
-                    <li class="nav-item">
-
-                        <a
-                            class="nav-link"
-                            href="{% url 'add_job' %}"
-                        >
-                            Add Cleaning
-                        </a>
-
-                    </li>
-
-
-                    <li class="nav-item">
-
-                        <a
-                            class="nav-link"
-                            href="{% url 'job_list' %}"
-                        >
-                            All Cleanings
-                        </a>
-
-                    </li>
-
-
-                    <li class="nav-item">
-
-                        <a
-                            class="nav-link"
-                            href="{% url 'monthly_reports' %}"
-                        >
-                            Monthly Reports
-                        </a>
-
-                    </li>
-
-
-                    <li class="nav-item">
-
-                        <a
-                            class="nav-link"
-                            href="{% url 'customer_list' %}"
-                        >
-                            Customers
-                        </a>
-
-                    </li>
-
-
-                    <li class="nav-item">
-
-                        <a
-                            class="nav-link"
-                            href="{% url 'canvassing' %}"
-                        >
-                            Location Search
-                        </a>
+                        </form>
 
                     </li>
 
@@ -359,12 +362,53 @@
     </nav>
 
 
+    <a href="javascript:history.back();" class="global-back-button">
+        <span class="arrow">←</span>
+        Back
+    </a>
+
+{% endif %}
+
+
+
+    <!-- ============================= -->
+    <!-- MESSAGES -->
+    <!-- ============================= -->
+
+    {% if messages %}
+
+        <div class="container mt-3">
+
+            {% for message in messages %}
+
+                <div
+                    class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show"
+                    role="alert"
+                >
+
+                    {{ message }}
+
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                    ></button>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+
 
     <!-- ============================= -->
     <!-- MAIN CONTENT -->
     <!-- ============================= -->
 
-    <div class="container">
+    <div class="container mb-5">
 
         {% block content %}
 
@@ -379,7 +423,7 @@
     <script
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
     ></script>
-    
+
     <script>
 if ("serviceWorker" in navigator) {
 
@@ -410,7 +454,11 @@ if ("serviceWorker" in navigator) {
 }
 </script>
 
+{% if user.is_staff %}
 <script src="{% static 'js/customer-search.js' %}"></script>
+{% endif %}
+
+{% block extra_js %}{% endblock %}
 
 </body>
 

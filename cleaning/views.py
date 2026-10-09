@@ -3,14 +3,17 @@ from django.http import HttpResponse
 from django.db.models import Sum, Count, Q
 from datetime import datetime
 from .models import Customer,Site,CleaningJob, JobExpense,CanvassingLocation,CleaningSchedule
-from .forms import CleaningJobForm, JobExpenseFormSet,CleaningScheduleForm
+from .forms import CleaningJobForm, JobExpenseFormSet,CleaningScheduleForm,EmployeeJobForm
 from django.http import JsonResponse
 import re
 import math
 from django.contrib import messages
 from django.db import transaction
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required, login_not_required
+from .permissions import owner_required
 
+@owner_required
 def dashboard_view(request):
     selected_month = request.GET.get('month')
     
@@ -44,7 +47,7 @@ def dashboard_view(request):
     }
     return render(request, 'dashboard.html', context)
 
-
+@ owner_required
 def add_job_view(request):
 
     if request.method == 'POST':
@@ -179,6 +182,9 @@ def add_job_view(request):
             'formset': formset
         }
     )
+
+
+@owner_required
 def job_list_view(request):
 
     query = request.GET.get('q', '').strip()
@@ -210,6 +216,7 @@ def job_list_view(request):
         }
     )
 
+@owner_required
 @require_POST
 def update_payment_status_view(request, pk):
 
@@ -235,6 +242,8 @@ def update_payment_status_view(request, pk):
         'payment_status': job.payment_status
     })  
 
+
+@owner_required
 def edit_job_view(request, pk):
     job = get_object_or_404(CleaningJob, pk=pk)
     if request.method == 'POST':
@@ -269,7 +278,7 @@ def schedule_view(request):
     upcoming_jobs = CleaningJob.objects.filter(job_status='Scheduled').order_by('date')
     return render(request,'schedule.html',{'upcomming_jobs': upcoming_jobs})   
 
-
+@owner_required
 def monthly_reports_view(request):
     jobs = CleaningJob.objects.select_related(
         'customer',
@@ -418,7 +427,7 @@ def monthly_reports_view(request):
         context
     )
 
-
+@owner_required
 def monthly_report_detail_view(request, month):
     """
     Shows all cleaning jobs and expenses for one month.
@@ -549,6 +558,7 @@ def monthly_report_detail_view(request, month):
         context
     )    
 
+@owner_required
 def customer_list_view(request):
     customers = Customer.objects.prefetch_related('sites').all().order_by('name')
 
@@ -571,6 +581,7 @@ def customer_list_view(request):
     )
 
 
+@owner_required
 def customer_detail_view(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
 
@@ -659,7 +670,7 @@ def customer_sites_api(request, customer_id):
         'sites': data
     })
 
-
+@owner_required
 def canvassing_view(request):
 
     query = request.GET.get('q', '').strip()
@@ -965,7 +976,7 @@ def canvassing_view(request):
     )
 
 
-
+@ owner_required
 def add_schedule_view(request):
 
     if request.method == 'POST':
@@ -1001,6 +1012,7 @@ def add_schedule_view(request):
         }
     )
 
+@owner_required
 def edit_schedule_view(request, pk):
 
     schedule = get_object_or_404(
@@ -1042,6 +1054,7 @@ def edit_schedule_view(request, pk):
         }
     )
 
+@owner_required
 @require_POST
 def delete_schedule_view(request, pk):
 
@@ -1098,7 +1111,7 @@ def update_schedule_status_view(request, pk):
     })    
 
 
-
+@ owner_required
 def schedule_events_api(request):
 
     schedules = (
@@ -1204,7 +1217,7 @@ def schedule_events_api(request):
         safe=False
     )
 
-
+@owner_required
 @require_POST
 def reschedule_api(request, pk):
 
@@ -1265,64 +1278,229 @@ def reschedule_api(request, pk):
             status=400
         )
 
+
+
+from django.contrib.auth.decorators import login_not_required
+
+
+@login_not_required
 def service_worker(request):
 
     sw_content = """
-const CACHE_NAME = "solarclean-manager-v1";
+const CACHE_NAME = "solarclean-manager-v2";
 
+// Only public static files - NO pages like "/" (they contain private data)
 const APP_SHELL = [
-    "/",
     "/static/manifest.json",
     "/static/icons/icon-192.png",
     "/static/icons/icon-512.png"
 ];
 
 self.addEventListener("install", event => {
-
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => cache.addAll(APP_SHELL))
     );
-
     self.skipWaiting();
 });
 
 
+// Delete old caches (including v1, which had the dashboard cached)
 self.addEventListener("activate", event => {
-
     event.waitUntil(
-
-        caches.keys().then(cacheNames => {
-
-            return Promise.all(
-
+        caches.keys().then(cacheNames =>
+            Promise.all(
                 cacheNames
                     .filter(name => name !== CACHE_NAME)
                     .map(name => caches.delete(name))
-
-            );
-
-        })
-
+            )
+        )
     );
-
     self.clients.claim();
 });
 
 
 self.addEventListener("fetch", event => {
 
-    event.respondWith(
+    const request = event.request;
 
-        fetch(event.request)
-            .catch(() => caches.match(event.request))
+    // Only handle GET requests; POSTs (status updates, login) go straight to network
+    if (request.method !== "GET") {
+        return;
+    }
 
-    );
+    const url = new URL(request.url);
 
+    // Static files: serve from cache if available, otherwise fetch
+    if (url.pathname.startsWith("/static/")) {
+        event.respondWith(
+            caches.match(request).then(cached => cached || fetch(request))
+        );
+        return;
+    }
+
+    // Pages and APIs: always from network, never cached.
+    // If offline, show a simple message instead of old private data.
+    if (request.mode === "navigate") {
+        event.respondWith(
+            fetch(request).catch(() =>
+                new Response(
+                    "<h2 style='font-family:sans-serif;text-align:center;margin-top:40px'>" +
+                    "You are offline. Please check your internet connection.</h2>",
+                    { headers: { "Content-Type": "text/html" } }
+                )
+            )
+        );
+    }
 });
 """
 
-    return HttpResponse(
+    response = HttpResponse(
         sw_content,
         content_type="application/javascript"
+    )
+
+    # Stop the browser from caching the service worker file itself,
+    # so future changes reach phones quickly
+    response["Cache-Control"] = "no-cache"
+
+    return response
+
+def home_view(request):
+ 
+    # Owner -> dashboard, employee -> his jobs
+    if request.user.is_staff:
+        return redirect('dashboard')
+ 
+    return redirect('my_schedule')
+ 
+ 
+def my_schedule_view(request):
+ 
+    today = datetime.now().date()
+ 
+    # All pending jobs for this employee, including overdue ones
+    schedules = (
+        CleaningSchedule.objects
+        .filter(
+            assigned_to=request.user,
+            status__in=['Scheduled', 'Rescheduled'],
+        )
+        .select_related('customer', 'site')
+        .order_by('scheduled_date', 'scheduled_time')
+    )
+ 
+    return render(
+        request,
+        'my_schedule.html',
+        {
+            'schedules': schedules,
+            'today': today,
+        }
+    )
+ 
+ 
+def employee_add_job_view(request):
+ 
+    # Optional: opened from a schedule card (?schedule=12)
+    schedule = None
+ 
+    schedule_id = (
+        request.GET.get('schedule')
+        or request.POST.get('schedule')
+    )
+ 
+    if schedule_id:
+ 
+        schedule = get_object_or_404(
+            CleaningSchedule,
+            pk=schedule_id,
+            assigned_to=request.user,   # can't open other people's schedules
+        )
+ 
+    if request.method == 'POST':
+ 
+        form = EmployeeJobForm(
+            request.POST,
+            user=request.user
+        )
+ 
+        formset = JobExpenseFormSet(request.POST)
+ 
+        if form.is_valid() and formset.is_valid():
+ 
+            with transaction.atomic():
+ 
+                job = form.save(commit=False)
+ 
+                job.done_by = request.user
+                job.payment_status = 'Unpaid'    # owner marks Paid later
+                job.job_status = 'Completed'
+ 
+                job.save()   # revenue auto-filled from RateCard in model.save()
+ 
+                formset.instance = job
+ 
+                expenses = formset.save()
+ 
+                job.total_expenses = sum(
+                    float(exp.cost or 0)
+                    for exp in expenses
+                )
+ 
+                job.net_profit = (
+                    float(job.revenue or 0)
+                    - job.total_expenses
+                )
+ 
+                job.save()
+ 
+                # Close the schedule this cleaning came from
+                if schedule:
+ 
+                    schedule.status = 'Completed'
+ 
+                    schedule.save(update_fields=[
+                        'status',
+                        'updated_at',
+                    ])
+ 
+            messages.success(
+                request,
+                "Cleaning recorded. Thank you!"
+            )
+ 
+            return redirect('my_schedule')
+ 
+        messages.error(
+            request,
+            "Please fix the errors below."
+        )
+ 
+    else:
+ 
+        initial = {
+            'date': datetime.now().date()
+        }
+ 
+        if schedule:
+ 
+            initial['customer'] = schedule.customer_id
+            initial['site'] = schedule.site_id
+ 
+        form = EmployeeJobForm(
+            initial=initial,
+            user=request.user
+        )
+ 
+        formset = JobExpenseFormSet()
+ 
+    return render(
+        request,
+        'employee_add_job.html',
+        {
+            'form': form,
+            'formset': formset,
+            'schedule': schedule,
+        }
     )

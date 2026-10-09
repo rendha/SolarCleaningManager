@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class RateCard(models.Model):
     system_size_kw = models.CharField(max_length=20, unique=True)
@@ -122,6 +123,11 @@ class CleaningJob(models.Model):
         max_digits=10,
         decimal_places=2,
         default=0.00
+    )
+
+    done_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='done_jobs'
     )
 
     def save(self, *args, **kwargs):
@@ -301,6 +307,11 @@ class CleaningSchedule(models.Model):
         auto_now=True
     )
 
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='assigned_schedules'
+    )
+
     def get_customer_name(self):
         """
         Return the actual customer name if this schedule
@@ -337,3 +348,7 @@ class CleaningSchedule(models.Model):
             f"{customer_name} - "
             f"{self.scheduled_date}"
         )
+
+
+
+
