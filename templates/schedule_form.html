@@ -132,12 +132,8 @@
 
 </style>
 
-<div class="schedule-form-container"></div>
-
-
-<body>
-
-<div class="container">
+<div class="schedule-form-container">
+    
 
     <h1>
         {{ title }}
@@ -341,6 +337,24 @@
             </label>
 
             {{ form.status }}
+
+        </div>
+
+    <!-- =========================================
+             ASSIGN TO EMPLOYEE
+    ========================================= -->
+
+        <div class="form-group">
+
+            <label for="{{ form.assigned_to.id_for_label }}">
+                Assign to Employee
+            </label>
+
+            {{ form.assigned_to }}
+
+            <div class="help">
+                This job will appear on the employee's "My Jobs" page.
+            </div>
 
         </div>
 
@@ -961,9 +975,10 @@ console.log(
 
 </script>
 
+{% endblock %}
+
 
 </body>
 
 </html>
 
-{% endblock %}

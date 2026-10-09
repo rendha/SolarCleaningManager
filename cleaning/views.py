@@ -13,7 +13,13 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, login_not_required
 from .permissions import owner_required
 
+<<<<<<< HEAD
 @owner_required
+=======
+def health_check(request):
+    return JsonResponse({"status": "ok"})
+
+>>>>>>> ef98075155eaefb66984613500f9c00485f2adf4
 def dashboard_view(request):
     selected_month = request.GET.get('month')
     
