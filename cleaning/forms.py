@@ -64,7 +64,7 @@ class CleaningJobForm(forms.ModelForm):
         ]
 
         widgets = {
-            'customer': forms.Select(attrs={'class': 'form-control'}),
+            'customer': forms.Select(attrs={'class': 'form-control', 'data-customer-search': 'true'}),
             'site': forms.Select(attrs={'class': 'form-control'}),
             'cleaning_number': forms.NumberInput(attrs={'class': 'form-control'}),
             'payment_status': forms.Select(attrs={'class': 'form-control'}),
