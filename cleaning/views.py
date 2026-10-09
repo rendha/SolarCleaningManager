@@ -13,13 +13,8 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, login_not_required
 from .permissions import owner_required
 
-<<<<<<< HEAD
-@owner_required
-=======
-def health_check(request):
-    return JsonResponse({"status": "ok"})
 
->>>>>>> ef98075155eaefb66984613500f9c00485f2adf4
+@owner_required
 def dashboard_view(request):
     selected_month = request.GET.get('month')
     
@@ -36,8 +31,6 @@ def dashboard_view(request):
     total_expenses = float(jobs.aggregate(Sum('total_expenses'))['total_expenses__sum'] or 0.00)
     total_profit = total_revenue - total_expenses
     
-    outstanding_amount = float(jobs.filter(is_free=False, payment_status='Unpaid').aggregate(Sum('revenue'))['revenue__sum'] or 0.00)
-    
     outstanding_amount = jobs.filter(is_free=False, payment_status='Unpaid').aggregate(Sum('revenue'))['revenue__sum'] or 0.00
 
     context = {
@@ -53,141 +46,68 @@ def dashboard_view(request):
     }
     return render(request, 'dashboard.html', context)
 
-@ owner_required
+
+@owner_required
 def add_job_view(request):
 
     if request.method == 'POST':
 
-        print("\n==============================")
-        print("ADD CLEANING POST RECEIVED")
-        print("==============================")
-        print("POST DATA:", request.POST)
-
         form = CleaningJobForm(request.POST)
+        formset = JobExpenseFormSet(request.POST)
 
-        if form.is_valid():
+        if form.is_valid() and formset.is_valid():
 
-            print("MAIN FORM: VALID")
+            try:
+                with transaction.atomic():
 
-            job = form.save(commit=False)
+                    job = form.save(commit=False)
+                    data = form.cleaned_data
 
-            print("Customer:", job.customer)
-            print("Site:", job.site)
-            print("Date:", job.date)
-            print("Cleaning number:", job.cleaning_number)
+                    # ----- Create customer + site for a non-customer -----
+                    if data.get('new_customer'):
 
-            formset = JobExpenseFormSet(
-                request.POST,
-                instance=job
-            )
-
-            if formset.is_valid():
-
-                print("EXPENSE FORMSET: VALID")
-
-                try:
-
-                    with transaction.atomic():
-
-                        # Save cleaning job
-                        job.save()
-
-                        print("CLEANING JOB SAVED!")
-                        print("JOB ID:", job.id)
-
-                        # Save expenses
-                        expenses = formset.save(commit=False)
-
-                        total_exp = 0
-
-                        for exp in expenses:
-
-                            exp.job = job
-                            exp.save()
-
-                            print(
-                                "EXPENSE SAVED:",
-                                exp.expense_name,
-                                exp.cost
-                            )
-
-                            total_exp += float(exp.cost or 0)
-
-                        # Handle deleted expenses
-                        for exp in formset.deleted_objects:
-                            exp.delete()
-
-                        job.total_expenses = total_exp
-
-                        job.net_profit = (
-                            float(job.revenue or 0)
-                            - total_exp
+                        customer = Customer.objects.create(
+                            name=data['new_customer_name'],
+                            phone=data.get('new_phone', ''),
                         )
 
-                        job.save()
+                        site = Site.objects.create(
+                            customer=customer,
+                            location=data.get('new_location', ''),
+                            address=data.get('new_address', ''),
+                            solar_kw=data.get('new_solar_kw', ''),
+                            google_map_link=data.get('new_map_link', ''),
+                            first_cleaning_done=True,
+                            first_cleaning_date=job.date,
+                        )
 
-                        print("FINAL JOB SAVED!")
-                        print("Revenue:", job.revenue)
-                        print("Expenses:", job.total_expenses)
-                        print("Profit:", job.net_profit)
+                        job.customer = customer
+                        job.site = site
 
-                    messages.success(
-                        request,
-                        f"Cleaning saved successfully! Job #{job.id}"
-                    )
+                    job.save()   # revenue calculated in model.save()
 
-                    return redirect('job_list')
+                    # ----- Expenses -----
+                    formset.instance = job
+                    expenses = formset.save()
 
-                except Exception as e:
+                    job.total_expenses = sum(float(e.cost or 0) for e in expenses)
+                    job.net_profit = float(job.revenue or 0) - job.total_expenses
+                    job.save()
 
-                    print("\n!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print("SAVE ERROR")
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print(repr(e))
+                messages.success(request, f"Cleaning saved successfully! Job #{job.id}")
+                return redirect('job_list')
 
-                    messages.error(
-                        request,
-                        f"Could not save cleaning: {str(e)}"
-                    )
-
-            else:
-
-                print("EXPENSE FORMSET: INVALID")
-                print("FORMSET ERRORS:", formset.errors)
-
-                messages.error(
-                    request,
-                    "Please fix the expense errors."
-                )
+            except Exception as e:
+                messages.error(request, f"Could not save cleaning: {e}")
 
         else:
-
-            print("MAIN FORM: INVALID")
-            print("FORM ERRORS:", form.errors)
-
-            messages.error(
-                request,
-                "Please fix the errors in the cleaning form."
-            )
+            messages.error(request, "Please fix the errors in the form.")
 
     else:
-
-        form = CleaningJobForm(
-            initial={
-                'date': datetime.now().date()
-            }
-        )
-
+        form = CleaningJobForm(initial={'date': datetime.now().date()})
         formset = JobExpenseFormSet()
 
-    return render(
-        request,
-        'add_job.html',
-        {
-            'form': form,
-            'formset': formset
-        }
-    )
+    return render(request, 'add_job.html', {'form': form, 'formset': formset})
 
 
 @owner_required
@@ -222,8 +142,9 @@ def job_list_view(request):
         }
     )
 
-@owner_required
+
 @require_POST
+@owner_required
 def update_payment_status_view(request, pk):
 
     job = get_object_or_404(
@@ -254,25 +175,26 @@ def edit_job_view(request, pk):
     job = get_object_or_404(CleaningJob, pk=pk)
     if request.method == 'POST':
         form = CleaningJobForm(request.POST, instance=job)
-        if form.is_valid():
+        formset = JobExpenseFormSet(request.POST, instance=job)
+        if form.is_valid() and formset.is_valid():
             job = form.save(commit=False)
-            formset = JobExpenseFormSet(request.POST, instance=job)
-            if formset.is_valid():
-                job.save()
-                
-                # Re-calculate expenses
-                expenses = formset.save(commit=False)
-                total_exp = 0.00
-                for exp in expenses:
-                    exp.job = job
-                    exp.save()
-                    total_exp += float(exp.cost)
-                
-                job.total_expenses = total_exp
-                job.net_profit = float(job.revenue) - job.total_expenses
-                job.save()
-                
-                return redirect('job_list')
+            job.save()
+            
+            # Re-calculate expenses
+            expenses = formset.save(commit=False)
+            for exp in expenses:
+                exp.job = job
+                exp.save()
+            for exp in formset.deleted_objects:
+                exp.delete()
+
+            total_exp = sum(float(e.cost or 0) for e in job.expenses.all())
+            
+            job.total_expenses = total_exp
+            job.net_profit = float(job.revenue or 0) - total_exp
+            job.save()
+            
+            return redirect('job_list')
     else:
         form = CleaningJobForm(instance=job)
         formset = JobExpenseFormSet(instance=job)
@@ -280,9 +202,11 @@ def edit_job_view(request, pk):
     return render(request, 'add_job.html', {'form': form, 'formset': formset})    
 
 
+@owner_required
 def schedule_view(request):
     upcoming_jobs = CleaningJob.objects.filter(job_status='Scheduled').order_by('date')
     return render(request,'schedule.html',{'upcomming_jobs': upcoming_jobs})   
+
 
 @owner_required
 def monthly_reports_view(request):
@@ -433,6 +357,7 @@ def monthly_reports_view(request):
         context
     )
 
+
 @owner_required
 def monthly_report_detail_view(request, month):
     """
@@ -564,6 +489,7 @@ def monthly_report_detail_view(request, month):
         context
     )    
 
+
 @owner_required
 def customer_list_view(request):
     customers = Customer.objects.prefetch_related('sites').all().order_by('name')
@@ -675,6 +601,7 @@ def customer_sites_api(request, customer_id):
     return JsonResponse({
         'sites': data
     })
+
 
 @owner_required
 def canvassing_view(request):
@@ -982,7 +909,7 @@ def canvassing_view(request):
     )
 
 
-@ owner_required
+@owner_required
 def add_schedule_view(request):
 
     if request.method == 'POST':
@@ -991,13 +918,9 @@ def add_schedule_view(request):
 
         if form.is_valid():
 
-            schedule = form.save()
-
-           
+            form.save()
 
             return redirect('schedule')
-
-       
 
     else:
 
@@ -1018,6 +941,7 @@ def add_schedule_view(request):
         }
     )
 
+
 @owner_required
 def edit_schedule_view(request, pk):
 
@@ -1035,13 +959,9 @@ def edit_schedule_view(request, pk):
 
         if form.is_valid():
 
-            schedule = form.save()
-
-           
+            form.save()
 
             return redirect('schedule')
-
-
 
     else:
 
@@ -1060,8 +980,9 @@ def edit_schedule_view(request, pk):
         }
     )
 
-@owner_required
+
 @require_POST
+@owner_required
 def delete_schedule_view(request, pk):
 
     schedule = get_object_or_404(
@@ -1088,6 +1009,16 @@ def update_schedule_status_view(request, pk):
         CleaningSchedule,
         pk=pk
     )
+
+    # Employees can only update their own schedules
+    if (
+        not request.user.is_staff
+        and schedule.assigned_to_id != request.user.id
+    ):
+        return JsonResponse(
+            {'success': False, 'error': 'Not allowed.'},
+            status=403
+        )
 
     new_status = request.POST.get('status')
 
@@ -1117,7 +1048,7 @@ def update_schedule_status_view(request, pk):
     })    
 
 
-@ owner_required
+@owner_required
 def schedule_events_api(request):
 
     schedules = (
@@ -1223,8 +1154,9 @@ def schedule_events_api(request):
         safe=False
     )
 
-@owner_required
+
 @require_POST
+@owner_required
 def reschedule_api(request, pk):
 
     schedule = get_object_or_404(
@@ -1285,8 +1217,13 @@ def reschedule_api(request, pk):
         )
 
 
+# =========================================================
+# HEALTH CHECK (Render pings this - must work without login)
+# =========================================================
 
-from django.contrib.auth.decorators import login_not_required
+@login_not_required
+def health_check(request):
+    return HttpResponse("OK")
 
 
 @login_not_required
@@ -1372,19 +1309,24 @@ self.addEventListener("fetch", event => {
 
     return response
 
+
+# =========================================================
+# EMPLOYEE PAGES
+# =========================================================
+
 def home_view(request):
- 
+
     # Owner -> dashboard, employee -> his jobs
     if request.user.is_staff:
         return redirect('dashboard')
- 
+
     return redirect('my_schedule')
- 
- 
+
+
 def my_schedule_view(request):
- 
+
     today = datetime.now().date()
- 
+
     # All pending jobs for this employee, including overdue ones
     schedules = (
         CleaningSchedule.objects
@@ -1395,7 +1337,7 @@ def my_schedule_view(request):
         .select_related('customer', 'site')
         .order_by('scheduled_date', 'scheduled_time')
     )
- 
+
     return render(
         request,
         'my_schedule.html',
@@ -1404,103 +1346,103 @@ def my_schedule_view(request):
             'today': today,
         }
     )
- 
- 
+
+
 def employee_add_job_view(request):
- 
+
     # Optional: opened from a schedule card (?schedule=12)
     schedule = None
- 
+
     schedule_id = (
         request.GET.get('schedule')
         or request.POST.get('schedule')
     )
- 
+
     if schedule_id:
- 
+
         schedule = get_object_or_404(
             CleaningSchedule,
             pk=schedule_id,
             assigned_to=request.user,   # can't open other people's schedules
         )
- 
+
     if request.method == 'POST':
- 
+
         form = EmployeeJobForm(
             request.POST,
             user=request.user
         )
- 
+
         formset = JobExpenseFormSet(request.POST)
- 
+
         if form.is_valid() and formset.is_valid():
- 
+
             with transaction.atomic():
- 
+
                 job = form.save(commit=False)
- 
+
                 job.done_by = request.user
                 job.payment_status = 'Unpaid'    # owner marks Paid later
                 job.job_status = 'Completed'
- 
+
                 job.save()   # revenue auto-filled from RateCard in model.save()
- 
+
                 formset.instance = job
- 
+
                 expenses = formset.save()
- 
+
                 job.total_expenses = sum(
                     float(exp.cost or 0)
                     for exp in expenses
                 )
- 
+
                 job.net_profit = (
                     float(job.revenue or 0)
                     - job.total_expenses
                 )
- 
+
                 job.save()
- 
+
                 # Close the schedule this cleaning came from
                 if schedule:
- 
+
                     schedule.status = 'Completed'
- 
+
                     schedule.save(update_fields=[
                         'status',
                         'updated_at',
                     ])
- 
+
             messages.success(
                 request,
                 "Cleaning recorded. Thank you!"
             )
- 
+
             return redirect('my_schedule')
- 
+
         messages.error(
             request,
             "Please fix the errors below."
         )
- 
+
     else:
- 
+
         initial = {
             'date': datetime.now().date()
         }
- 
+
         if schedule:
- 
+
             initial['customer'] = schedule.customer_id
             initial['site'] = schedule.site_id
- 
+
         form = EmployeeJobForm(
             initial=initial,
             user=request.user
         )
- 
+
         formset = JobExpenseFormSet()
- 
+
     return render(
         request,
         'employee_add_job.html',
