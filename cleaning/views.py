@@ -682,15 +682,17 @@ def canvassing_view(request):
 
             # Spelling-tolerant matches: "velimadkunnu" finds "VELLIMADUKUNNU"
             fuzzy_site_ids = [
-                site.id
-                for site in Site.objects.select_related('customer')
-                if text_matches(query, f"{site.location} {site.address}")
+                site_id
+                for site_id, location, address in
+                Site.objects.values_list('id', 'location', 'address')
+                if text_matches(query, f"{location} {address}")
             ]
 
             fuzzy_customer_ids = [
-                customer.id
-                for customer in Customer.objects.all()
-                if text_matches(query, f"{customer.name} {customer.contact_person}")
+                customer_id
+                for customer_id, name, contact in
+                Customer.objects.values_list('id', 'name', 'contact_person')
+                if text_matches(query, f"{name} {contact}")
             ]
 
             if fuzzy_customer_ids:
@@ -800,7 +802,11 @@ def canvassing_view(request):
             # 5. Sites with NO coordinates: match by area name
             # ---------------------------------------------
 
-            words = set(place_names_near(center[0], center[1]))
+            # Area names: from the map only when a link was pasted
+            # (text searches already have words to match, and this saves a slow lookup)
+            words = set()
+            if center_source == 'link':
+                words = set(place_names_near(center[0], center[1]))
 
             # Also use the typed place name itself
             if center_source == 'place':
@@ -832,17 +838,21 @@ def canvassing_view(request):
                     Site.objects
                     .filter(Q(latitude__isnull=True) | Q(longitude__isnull=True))
                     .exclude(customer_id__in=exclude_customer_ids | listed_customers)
+                    .values_list('id', 'location', 'address')
+                )
+
+                area_ids = [
+                    site_id
+                    for site_id, location, address in candidates
+                    if any(text_matches(word, f"{location} {address}") for word in words)
+                ][:30]
+
+                area_matches = list(
+                    Site.objects
+                    .filter(id__in=area_ids)
                     .select_related('customer')
                     .order_by('location', 'customer__name')
                 )
-
-                area_matches = [
-                    site for site in candidates
-                    if any(
-                        text_matches(word, f"{site.location} {site.address}")
-                        for word in words
-                    )
-                ][:30]
 
     missing_coordinates = Site.objects.filter(
         Q(latitude__isnull=True) | Q(longitude__isnull=True)

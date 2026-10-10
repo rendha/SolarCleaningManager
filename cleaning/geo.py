@@ -13,6 +13,7 @@ Location helpers for the Location Search (canvassing) page.
 
 import math
 import re
+import time
 from functools import lru_cache
 from urllib.parse import unquote
 
@@ -35,6 +36,21 @@ GEOCODE_REGION = getattr(
 )
 
 NOMINATIM_URL = 'https://nominatim.openstreetmap.org'
+
+# Never let a slow map service hold up the page
+LOOKUP_TIMEOUT = 4          # seconds per request
+PAUSE_AFTER_FAILURE = 600   # if OpenStreetMap fails, skip it for 10 minutes
+
+_paused_until = 0.0
+
+
+def _service_available():
+    return time.time() >= _paused_until
+
+
+def _mark_failure():
+    global _paused_until
+    _paused_until = time.time() + PAUSE_AFTER_FAILURE
 
 NUM = r'(-?\d{1,3}\.\d+)'
 
@@ -76,7 +92,7 @@ def _resolve_short_link(url):
         response = requests.get(
             url,
             allow_redirects=True,
-            timeout=8,
+            timeout=6,
             headers={'User-Agent': 'Mozilla/5.0'},
         )
     except requests.RequestException:
@@ -118,6 +134,8 @@ def coords_from_text(text):
 
 @lru_cache(maxsize=512)
 def _nominatim_search(query):
+    if not _service_available():
+        return None
     try:
         response = requests.get(
             NOMINATIM_URL + '/search',
@@ -128,10 +146,12 @@ def _nominatim_search(query):
                 'countrycodes': 'in',
             },
             headers={'User-Agent': USER_AGENT},
-            timeout=10,
+            timeout=LOOKUP_TIMEOUT,
         )
+        response.raise_for_status()
         data = response.json()
     except (requests.RequestException, ValueError):
+        _mark_failure()
         return None
 
     if not data:
@@ -150,10 +170,7 @@ def geocode_place(text):
     if len(text) < 3:
         return None
 
-    return (
-        _nominatim_search(f'{text}, {GEOCODE_REGION}')
-        or _nominatim_search(text)
-    )
+    return _nominatim_search(f'{text}, {GEOCODE_REGION}')
 
 
 @lru_cache(maxsize=256)
@@ -162,6 +179,8 @@ def place_names_near(lat, lng):
     Area names around a point, e.g. {'VELLIMADUKUNNU', 'KOZHIKODE'}.
     Used to match sites that have no coordinates by their address text.
     """
+    if not _service_available():
+        return frozenset()
     try:
         response = requests.get(
             NOMINATIM_URL + '/reverse',
@@ -173,10 +192,12 @@ def place_names_near(lat, lng):
                 'addressdetails': 1,
             },
             headers={'User-Agent': USER_AGENT},
-            timeout=10,
+            timeout=LOOKUP_TIMEOUT,
         )
+        response.raise_for_status()
         address = response.json().get('address', {})
     except (requests.RequestException, ValueError):
+        _mark_failure()
         return frozenset()
 
     keys = (
@@ -236,12 +257,14 @@ _SOUND_REPLACEMENTS = (
 )
 
 
+@lru_cache(maxsize=20000)
 def _normalise_word(word):
     """Upper-case letters only, doubled letters collapsed: VELLIMADUKUNNU -> VELIMADUKUNU."""
     word = re.sub(r'[^A-Z]', '', word.upper())
     return re.sub(r'(.)\1+', r'\1', word)
 
 
+@lru_cache(maxsize=20000)
 def _sound_key(word):
     """Consonant skeleton: VELLIMADUKUNNU and VELIMADKUNNU both -> VLMDKN."""
     word = _normalise_word(word)
