@@ -394,7 +394,7 @@
                     <strong>{{ missing_coordinates }} site{{ missing_coordinates|pluralize }} without a map location.</strong>
                     <div class="small text-muted">
                         They can't be measured by distance yet. This reads their Google Maps link,
-                        or estimates the position from the address. Up to 15 sites per click.
+                        or estimates the position from the address. Up to 5 sites per click.
                     </div>
                 </div>
 
@@ -444,7 +444,7 @@
         form.addEventListener('submit', function () {
             const btn = document.getElementById('fillCoordsBtn');
             btn.disabled = true;
-            btn.textContent = 'Looking up… (about 20 seconds)';
+            btn.textContent = 'Looking up… (a few seconds)';
         });
     }
 

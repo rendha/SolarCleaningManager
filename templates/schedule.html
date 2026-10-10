@@ -167,6 +167,11 @@
 
 <div class="calendar-card">
 
+    <div id="calendarLoading" class="text-muted small mb-2" hidden>Loading jobs…</div>
+    <div id="calendarError" class="alert alert-danger py-2" hidden>
+        Couldn't load the jobs. Check your internet connection and that you're logged in, then
+        <a href="" class="alert-link">reload the page</a>.
+    </div>
     <div id="calendar"></div>
 
     <div class="legend">
@@ -280,11 +285,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         buttonText: { today: 'Today', month: 'Month', week: 'Week', list: 'List' },
 
-        events: "{% url 'schedule_events_api' %}",
+        events: {
+            url: "{% url 'schedule_events_api' %}",
+            failure: function () {
+                showCalendarError();
+            },
+        },
+
+        // Shows "Loading jobs..." while the phone fetches them
+        loading: function (isLoading) {
+            const note = document.getElementById('calendarLoading');
+            if (note) note.hidden = !isLoading;
+        },
 
         // Every job is a box with its name; "+ more" when a day is full
         eventDisplay: 'block',
-        dayMaxEvents: true,
+        dayMaxEvents: 3,       // up to 3 per day, then "+ more"
 
         // A late-evening job stays on its own day
         nextDayThreshold: '23:59:59',
@@ -478,5 +494,10 @@ function getCookie(name) {
     return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
 }
 
+
+function showCalendarError() {
+    const box = document.getElementById('calendarError');
+    if (box) box.hidden = false;
+}
 </script>
 {% endblock %}

@@ -893,10 +893,10 @@ def fill_site_coordinates_view(request):
       1. from the site's Google Maps link (exact)
       2. otherwise from its location/address text (approximate)
     OpenStreetMap allows about 1 lookup per second, so each click
-    handles up to 15 sites.
+    handles up to 5 sites.
     """
 
-    BATCH = 15
+    BATCH = 5
 
     tried_before = set(request.session.get('geo_failed_site_ids', []))
 

@@ -167,7 +167,12 @@
 
         <div class="card shadow-sm border-0">
             <div class="card-body p-2 p-md-3">
-                <div id="myCalendar"></div>
+                <div id="calendarLoading" class="text-muted small mb-2" hidden>Loading jobs…</div>
+    <div id="calendarError" class="alert alert-danger py-2" hidden>
+        Couldn't load the jobs. Check your internet connection and that you're logged in, then
+        <a href="" class="alert-link">reload the page</a>.
+    </div>
+    <div id="myCalendar"></div>
             </div>
         </div>
 
@@ -262,10 +267,21 @@ document.getElementById('tab-calendar').addEventListener('shown.bs.tab', functio
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listUpcoming' },
         buttonText: { today: 'Today', month: 'Month', list: 'List' },
 
-        events: "{% url 'my_schedule_events_api' %}",
+        events: {
+            url: "{% url 'my_schedule_events_api' %}",
+            failure: function () {
+                showCalendarError();
+            },
+        },
+
+        // Shows "Loading jobs..." while the phone fetches them
+        loading: function (isLoading) {
+            const note = document.getElementById('calendarLoading');
+            if (note) note.hidden = !isLoading;
+        },
 
         eventDisplay: 'block',
-        dayMaxEvents: true,
+        dayMaxEvents: 3,       // up to 3 per day, then "+ more"
         nextDayThreshold: '23:59:59',
         eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
         noEventsContent: 'No jobs this week',
@@ -310,5 +326,10 @@ document.getElementById('tab-calendar').addEventListener('shown.bs.tab', functio
     myCalendar.render();
 });
 
+
+function showCalendarError() {
+    const box = document.getElementById('calendarError');
+    if (box) box.hidden = false;
+}
 </script>
 {% endblock %}
