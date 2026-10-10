@@ -20,7 +20,7 @@ urlpatterns = [
     # EMPLOYEE
     path('my-jobs/', views.my_schedule_view, name='my_schedule'),
     path('my-jobs/record/', views.employee_add_job_view, name='employee_add_job'),
-
+    path('my-jobs/events/', views.my_schedule_events_api, name='my_schedule_events_api'),
     # DASHBOARD
     path('dashboard/', views.dashboard_view, name='dashboard'),
 
@@ -52,4 +52,5 @@ urlpatterns = [
 
     # CANVASSING
     path('canvassing/', views.canvassing_view, name='canvassing'),
+    path('canvassing/find-locations/', views.fill_site_coordinates_view, name='fill_site_coordinates'),
 ]

@@ -362,10 +362,14 @@
     </nav>
 
 
-    <a href="javascript:history.back();" class="global-back-button">
-        <span class="arrow">←</span>
-        Back
-    </a>
+    {% with page=request.resolver_match.url_name %}
+        {% if page != 'dashboard' and page != 'my_schedule' %}
+            <a href="javascript:history.back();" class="global-back-button">
+                <span class="arrow">←</span>
+                Back
+            </a>
+        {% endif %}
+    {% endwith %}
 
 {% endif %}
 

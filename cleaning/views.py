@@ -1,17 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.db.models import Sum, Count, Q
-from datetime import datetime
+from datetime import datetime, timedelta
 from .models import Customer,Site,CleaningJob, JobExpense,CanvassingLocation,CleaningSchedule
 from .forms import CleaningJobForm, JobExpenseFormSet,CleaningScheduleForm,EmployeeJobForm
 from django.http import JsonResponse
 import re
 import math
+import time
 from django.contrib import messages
 from django.db import transaction
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, login_not_required
 from .permissions import owner_required
+from .geo import coords_from_text, geocode_place, place_names_near, distance_km, looks_like_link, text_matches
 
 
 @owner_required
@@ -605,308 +607,342 @@ def customer_sites_api(request, customer_id):
 
 @owner_required
 def canvassing_view(request):
+    """
+    Find existing installations near a new client.
 
-    query = request.GET.get('q', '').strip()
+    The search box accepts:
+      - a Google Maps link (long or short maps.app.goo.gl link)
+      - coordinates like "11.2588, 75.7804"
+      - a place name, e.g. "Vellimadukunnu" (any capitalisation)
+      - an existing customer's name or phone
+    """
+
+    query = ' '.join(request.GET.get('q', '').split())   # tidy spaces
+
+    try:
+        radius_km = float(request.GET.get('radius', 5))
+    except ValueError:
+        radius_km = 5
+    radius_km = min(max(radius_km, 0.5), 50)
 
     matching_customers = Customer.objects.none()
     matching_sites = Site.objects.none()
-    nearby_sites = Site.objects.none()
 
-    nearest_sites = []
+    center = None            # (lat, lng) we measure distances from
+    center_label = ''        # what the centre is, shown on the page
+    center_source = ''       # 'link', 'site', 'place'
+    center_site = None       # existing site used as the centre
+    exclude_customer_ids = set()
+
+    within_radius = []       # installations inside radius_km
+    nearest_outside = []     # shown when nothing is inside the radius
+    area_matches = []        # sites without coordinates, matched by area name
+    area_words = []
 
     if query:
 
-        # =================================================
-        # 1. FIND CUSTOMERS MATCHING SEARCH
-        # =================================================
+        is_link = looks_like_link(query)
 
-        matching_customers = Customer.objects.filter(
-            Q(name__icontains=query) |
-            Q(contact_person__icontains=query) |
-            Q(phone__icontains=query)
-        ).prefetch_related('sites').distinct()
+        # ---------------------------------------------
+        # 1. Coordinates straight from a map link / "lat, lng"
+        # ---------------------------------------------
 
+        center = coords_from_text(query)
 
-        # =================================================
-        # 2. FIND SITES MATCHING SEARCH
-        # =================================================
+        if center:
+            center_source = 'link'
+            center_label = 'Google Maps location' if is_link else query
 
-        matching_sites = Site.objects.filter(
-            Q(location__icontains=query) |
-            Q(address__icontains=query) |
-            Q(customer__name__icontains=query) |
-            Q(customer__contact_person__icontains=query) |
-            Q(customer__phone__icontains=query)
-        ).select_related('customer').distinct()
-
-
-        # =================================================
-        # 3. SOURCE SITES
-        # =================================================
-
-        source_sites = Site.objects.filter(
-            Q(location__icontains=query) |
-            Q(address__icontains=query) |
-            Q(customer__name__icontains=query) |
-            Q(customer__contact_person__icontains=query) |
-            Q(customer__phone__icontains=query)
-        ).select_related('customer').distinct()
-
-
-        # =================================================
-        # 4. LOCATION WORD MATCHING
-        # =================================================
-
-        location_words = set()
-
-        ignored_words = {
-            'PO',
-            'P',
-            'H',
-            'HOUSE',
-            'ROAD',
-            'RD',
-            'STREET',
-            'ST',
-            'POST',
-            'DIST',
-            'DISTRICT',
-            'KERALA',
-            'KOZHIKODE',
-            'CALICUT',
-            'PIN',
-            'NEAR',
-            'OPP',
-            'OPPOSITE'
-        }
-
-        for site in source_sites:
-
-            text = f"{site.location} {site.address}".upper()
-
-            words = re.findall(
-                r'[A-Z0-9]+',
-                text
+        elif is_link:
+            messages.warning(
+                request,
+                "Couldn't read a location from that link. In Google Maps, "
+                "open the place, tap Share, copy the link and paste it here."
             )
 
-            for word in words:
+        # ---------------------------------------------
+        # 2. Text search (icontains = not case-sensitive)
+        # ---------------------------------------------
 
-                if (
-                    len(word) >= 4
-                    and word not in ignored_words
-                ):
-                    location_words.add(word)
+        if not is_link and not center:
 
+            matching_customers = Customer.objects.filter(
+                Q(name__icontains=query) |
+                Q(contact_person__icontains=query) |
+                Q(phone__icontains=query)
+            ).prefetch_related('sites').distinct()
 
-        # =================================================
-        # 5. FIND CUSTOMERS IN SAME AREA
-        # =================================================
+            matching_sites = Site.objects.filter(
+                Q(location__icontains=query) |
+                Q(address__icontains=query) |
+                Q(customer__name__icontains=query) |
+                Q(customer__contact_person__icontains=query) |
+                Q(customer__phone__icontains=query)
+            ).select_related('customer').distinct()
 
-        all_sites = Site.objects.select_related(
-            'customer'
-        ).all()
+            # Spelling-tolerant matches: "velimadkunnu" finds "VELLIMADUKUNNU"
+            fuzzy_site_ids = [
+                site.id
+                for site in Site.objects.select_related('customer')
+                if text_matches(query, f"{site.location} {site.address}")
+            ]
 
-        nearby_ids = []
+            fuzzy_customer_ids = [
+                customer.id
+                for customer in Customer.objects.all()
+                if text_matches(query, f"{customer.name} {customer.contact_person}")
+            ]
 
-        source_customer_ids = set(
-            source_sites.values_list(
-                'customer_id',
-                flat=True
-            )
-        )
-
-        for site in all_sites:
-
-            # Don't show searched customer
-            if site.customer_id in source_customer_ids:
-                continue
-
-            site_text = (
-                f"{site.location} "
-                f"{site.address}"
-            ).upper()
-
-            site_words = set(
-                re.findall(
-                    r'[A-Z0-9]+',
-                    site_text
+            if fuzzy_customer_ids:
+                matching_customers = (
+                    Customer.objects
+                    .filter(Q(id__in=matching_customers.values('id')) | Q(id__in=fuzzy_customer_ids))
+                    .prefetch_related('sites')
+                    .distinct()
                 )
-            )
 
-            if location_words.intersection(site_words):
-
-                nearby_ids.append(site.id)
-
-
-        nearby_sites = Site.objects.filter(
-            id__in=nearby_ids
-        ).select_related(
-            'customer'
-        ).order_by(
-            'location',
-            'customer__name'
-        )
-
-
-        # =================================================
-        # 6. HAVERSINE DISTANCE CALCULATION
-        # =================================================
-
-        EARTH_RADIUS_KM = 6371.0
-
-        def calculate_distance(
-            lat1,
-            lon1,
-            lat2,
-            lon2
-        ):
-
-            lat1 = math.radians(lat1)
-            lon1 = math.radians(lon1)
-
-            lat2 = math.radians(lat2)
-            lon2 = math.radians(lon2)
-
-            dlat = lat2 - lat1
-            dlon = lon2 - lon1
-
-            a = (
-                math.sin(dlat / 2) ** 2
-                +
-                math.cos(lat1)
-                * math.cos(lat2)
-                * math.sin(dlon / 2) ** 2
-            )
-
-            c = 2 * math.atan2(
-                math.sqrt(a),
-                math.sqrt(1 - a)
-            )
-
-            return EARTH_RADIUS_KM * c
-
-
-        # =================================================
-        # 7. FIND REFERENCE SITE
-        # =================================================
-
-        reference_site = None
-
-        for site in source_sites:
-
-            if (
-                site.latitude is not None
-                and site.longitude is not None
-            ):
-                reference_site = site
-                break
-
-
-        # =================================================
-        # 8. FIND 10 NEAREST CUSTOMERS
-        # =================================================
-
-        if reference_site:
-
-            sites_with_coordinates = (
-                Site.objects
-                .filter(
-                    latitude__isnull=False,
-                    longitude__isnull=False
+            if fuzzy_site_ids or fuzzy_customer_ids:
+                matching_sites = (
+                    Site.objects
+                    .filter(
+                        Q(id__in=matching_sites.values('id')) |
+                        Q(id__in=fuzzy_site_ids) |
+                        Q(customer_id__in=fuzzy_customer_ids)
+                    )
+                    .select_related('customer')
+                    .distinct()
                 )
-                .exclude(
-                    customer_id__in=source_customer_ids
+
+            # Use a matching site that has coordinates as the centre
+            for site in matching_sites:
+                if site.latitude is not None and site.longitude is not None:
+                    center = (site.latitude, site.longitude)
+                    center_source = 'site'
+                    center_site = site
+                    center_label = f"{site.customer.name} – {site.location or site.address}"
+                    break
+
+            # Searched by a customer's name/phone: don't list them as "nearby"
+            customer_hit = matching_customers.exists()
+            if customer_hit:
+                exclude_customer_ids = set(
+                    matching_customers.values_list('id', flat=True)
                 )
-                .select_related('customer')
-            )
 
+            # ---------------------------------------------
+            # 3. Not in our records: look the place name up
+            # ---------------------------------------------
 
-            # Keep only the nearest site for each customer
+            if center is None and not customer_hit:
+                center = geocode_place(query)
+                if center:
+                    center_source = 'place'
+                    center_label = query.title()
+
+            # Found the customer, but their site has no coordinates:
+            # estimate from the site's address instead
+            if center is None:
+                for site in matching_sites:
+                    text = ' '.join(filter(None, [site.location, site.address]))
+                    center = geocode_place(text)
+                    if center:
+                        center_source = 'site'
+                        center_site = site
+                        center_label = (
+                            f"{site.customer.name} – {site.location or site.address} "
+                            "(approximate, from address)"
+                        )
+                        break
+
+        # ---------------------------------------------
+        # 4. Distances to every installation with coordinates
+        # ---------------------------------------------
+
+        if center:
 
             nearest_by_customer = {}
 
+            sites_with_coords = (
+                Site.objects
+                .filter(latitude__isnull=False, longitude__isnull=False)
+                .exclude(customer_id__in=exclude_customer_ids)
+                .select_related('customer')
+            )
 
-            for site in sites_with_coordinates:
+            for site in sites_with_coords:
 
-                distance = calculate_distance(
-                    reference_site.latitude,
-                    reference_site.longitude,
-                    site.latitude,
-                    site.longitude
+                distance = distance_km(
+                    center[0], center[1],
+                    site.latitude, site.longitude
                 )
 
-                customer_id = site.customer_id
+                current = nearest_by_customer.get(site.customer_id)
 
-
-                if (
-                    customer_id not in nearest_by_customer
-                    or
-                    distance <
-                    nearest_by_customer[customer_id]['distance']
-                ):
-
-                    nearest_by_customer[customer_id] = {
+                if current is None or distance < current['distance']:
+                    nearest_by_customer[site.customer_id] = {
                         'site': site,
-                        'distance': distance
+                        'distance': round(distance, 2),
+                        # No map link = position estimated from the address
+                        'approx': not site.google_map_link,
                     }
 
-
-            # Convert to list
-
-            calculated_sites = list(
-                nearest_by_customer.values()
+            ranked = sorted(
+                nearest_by_customer.values(),
+                key=lambda item: item['distance']
             )
 
+            within_radius = [i for i in ranked if i['distance'] <= radius_km]
 
-            # Sort nearest → farthest
+            if not within_radius:
+                nearest_outside = ranked[:10]
 
-            calculated_sites.sort(
-                key=lambda x: x['distance']
-            )
+            # ---------------------------------------------
+            # 5. Sites with NO coordinates: match by area name
+            # ---------------------------------------------
 
+            words = set(place_names_near(center[0], center[1]))
 
-            # Round distance for display
+            # Also use the typed place name itself
+            if center_source == 'place':
+                words |= {
+                    w.upper() for w in re.findall(r'[A-Za-z]{4,}', query)
+                }
 
-            nearest_sites = []
-
-            for item in calculated_sites[:10]:
-
-                nearest_sites.append({
-                    'site': item['site'],
-                    'distance': round(
-                        item['distance'],
-                        2
+            # ...or the matched site's own location text
+            if center_site is not None:
+                words |= {
+                    w.upper() for w in re.findall(
+                        r'[A-Za-z]{4,}',
+                        f"{center_site.location} {center_site.address}"
                     )
-                })
+                }
 
+            ignored = {
+                'HOUSE', 'ROAD', 'STREET', 'POST', 'DIST', 'DISTRICT',
+                'KERALA', 'KOZHIKODE', 'CALICUT', 'NEAR', 'OPPOSITE', 'INDIA',
+            }
+            words -= ignored
+            area_words = sorted(words)
 
-    # =================================================
-    # CONTEXT
-    # =================================================
+            if words:
+
+                listed_customers = {i['site'].customer_id for i in ranked}
+
+                candidates = (
+                    Site.objects
+                    .filter(Q(latitude__isnull=True) | Q(longitude__isnull=True))
+                    .exclude(customer_id__in=exclude_customer_ids | listed_customers)
+                    .select_related('customer')
+                    .order_by('location', 'customer__name')
+                )
+
+                area_matches = [
+                    site for site in candidates
+                    if any(
+                        text_matches(word, f"{site.location} {site.address}")
+                        for word in words
+                    )
+                ][:30]
+
+    missing_coordinates = Site.objects.filter(
+        Q(latitude__isnull=True) | Q(longitude__isnull=True)
+    ).count()
 
     context = {
-
         'query': query,
+        'radius_km': radius_km,
+        'radius_choices': [1, 2, 5, 10, 20],
 
-        'matching_customers':
-            matching_customers,
+        'center': center,
+        'center_label': center_label,
+        'center_source': center_source,
 
-        'matching_sites':
-            matching_sites,
+        'within_radius': within_radius,
+        'nearest_outside': nearest_outside,
+        'area_matches': area_matches,
+        'area_words': area_words,
 
-        'nearby_sites':
-            nearby_sites,
+        'matching_customers': matching_customers,
+        'matching_sites': matching_sites,
 
-        'nearest_sites':
-            nearest_sites,
+        'missing_coordinates': missing_coordinates,
     }
-
 
     return render(
         request,
         'canvassing.html',
         context
     )
+
+
+@require_POST
+@owner_required
+def fill_site_coordinates_view(request):
+    """
+    Finds coordinates for sites that don't have them yet, a batch at a time:
+      1. from the site's Google Maps link (exact)
+      2. otherwise from its location/address text (approximate)
+    OpenStreetMap allows about 1 lookup per second, so each click
+    handles up to 15 sites.
+    """
+
+    BATCH = 15
+
+    tried_before = set(request.session.get('geo_failed_site_ids', []))
+
+    sites = (
+        Site.objects
+        .filter(Q(latitude__isnull=True) | Q(longitude__isnull=True))
+        .exclude(id__in=tried_before)
+        .order_by('id')[:BATCH]
+    )
+
+    found_exact = 0
+    found_approx = 0
+    failed = []
+
+    for site in sites:
+
+        coords = None
+        approx = False
+
+        if site.google_map_link:
+            coords = coords_from_text(site.google_map_link)
+
+        if not coords:
+            text = ' '.join(filter(None, [site.location, site.address]))
+            if text:
+                coords = geocode_place(text)
+                approx = True
+                time.sleep(1.1)   # OpenStreetMap usage limit
+
+        if coords:
+            site.latitude, site.longitude = coords
+            site.save(update_fields=['latitude', 'longitude'])
+            if approx:
+                found_approx += 1
+            else:
+                found_exact += 1
+        else:
+            failed.append(site.id)
+
+    request.session['geo_failed_site_ids'] = list(tried_before | set(failed))
+
+    remaining = (
+        Site.objects
+        .filter(Q(latitude__isnull=True) | Q(longitude__isnull=True))
+        .exclude(id__in=request.session['geo_failed_site_ids'])
+        .count()
+    )
+
+    messages.success(
+        request,
+        f"Located {found_exact} site(s) from map links and "
+        f"{found_approx} from their address (approximate). "
+        f"{len(failed)} couldn't be found. {remaining} still to check."
+    )
+
+    return redirect('canvassing')
 
 
 @owner_required
@@ -1048,109 +1084,109 @@ def update_schedule_status_view(request, pk):
     })    
 
 
-@owner_required
-def schedule_events_api(request):
+STATUS_COLORS = {
+    'Scheduled': '#3B73B9',
+    'Completed': '#28a745',
+    'Rescheduled': '#f0ad4e',
+    'Cancelled': '#dc3545',
+}
 
-    schedules = (
-        CleaningSchedule.objects
-        .select_related(
-            'customer',
-            'site'
-        )
-        .all()
-    )
+
+def _schedule_events(schedules, for_owner):
+    """Turns schedules into FullCalendar events."""
 
     events = []
-
-    status_colors = {
-        'Scheduled': '#3B73B9',
-        'Completed': '#28a745',
-        'Rescheduled': '#f0ad4e',
-        'Cancelled': '#dc3545',
-    }
 
     for schedule in schedules:
 
         customer_name = schedule.get_customer_name()
 
-        location = schedule.get_location()
-
         if schedule.scheduled_time:
-
             start = (
                 f"{schedule.scheduled_date.isoformat()}"
                 f"T{schedule.scheduled_time.strftime('%H:%M:%S')}"
             )
-
         else:
-
             start = schedule.scheduled_date.isoformat()
 
+        color = STATUS_COLORS.get(schedule.status, '#3B73B9')
+
+        assigned = ''
+        if schedule.assigned_to:
+            assigned = (
+                schedule.assigned_to.get_full_name()
+                or schedule.assigned_to.username
+            )
+
+        props = {
+            'customer_name': customer_name,
+            'phone': schedule.phone or (
+                schedule.customer.phone if schedule.customer else ''
+            ),
+            'location': schedule.get_location() or '',
+            'address': (
+                schedule.site.address if schedule.site else schedule.address
+            ) or '',
+            'map_link': (
+                schedule.site.google_map_link if schedule.site else ''
+            ) or '',
+            'solar_kw': (
+                schedule.site.solar_kw if schedule.site else schedule.solar_kw
+            ) or '',
+            'status': schedule.status,
+            'notes': schedule.notes or '',
+            'assigned_to': assigned,
+        }
+
+        if for_owner:
+            props['edit_url'] = f"/schedule/{schedule.id}/edit/"
+            props['delete_url'] = f"/schedule/{schedule.id}/delete/"
+        else:
+            props['record_url'] = (
+                f"/my-jobs/record/?schedule={schedule.id}"
+                if schedule.site else ''
+            )
+
         events.append({
-
             'id': str(schedule.id),
-
             'title': customer_name,
-
             'start': start,
-
-            'allDay': (
-                schedule.scheduled_time is None
-            ),
-
-            'backgroundColor': (
-                status_colors.get(
-                    schedule.status,
-                    '#3B73B9'
-                )
-            ),
-
-            'borderColor': (
-                status_colors.get(
-                    schedule.status,
-                    '#3B73B9'
-                )
-            ),
-
-            'extendedProps': {
-
-                'customer_name':
-                    customer_name,
-
-                'phone':
-                    schedule.phone
-                    or (
-                        schedule.customer.phone
-                        if schedule.customer
-                        else ''
-                    ),
-
-                'location':
-                    location or '',
-
-                'address':
-                    (
-                        schedule.site.address
-                        if schedule.site
-                        else schedule.address
-                    ) or '',
-
-                'status':
-                    schedule.status,
-
-                'notes':
-                    schedule.notes or '',
-
-                'edit_url':
-                    f"/schedule/{schedule.id}/edit/",
-
-                'delete_url':
-                    f"/schedule/{schedule.id}/delete/",
-            }
+            'allDay': schedule.scheduled_time is None,
+            'backgroundColor': color,
+            'borderColor': color,
+            'extendedProps': props,
         })
 
+    return events
+
+
+@owner_required
+def schedule_events_api(request):
+
+    schedules = (
+        CleaningSchedule.objects
+        .select_related('customer', 'site', 'assigned_to')
+        .all()
+    )
+
     return JsonResponse(
-        events,
+        _schedule_events(schedules, for_owner=True),
+        safe=False
+    )
+
+
+def my_schedule_events_api(request):
+    """Calendar data for the logged-in employee: only his own jobs."""
+
+    schedules = (
+        CleaningSchedule.objects
+        .filter(assigned_to=request.user)
+        .exclude(status='Cancelled')
+        .select_related('customer', 'site', 'assigned_to')
+    )
+
+    return JsonResponse(
+        _schedule_events(schedules, for_owner=False),
         safe=False
     )
 
@@ -1327,8 +1363,7 @@ def my_schedule_view(request):
 
     today = datetime.now().date()
 
-    # All pending jobs for this employee, including overdue ones
-    schedules = (
+    pending = (
         CleaningSchedule.objects
         .filter(
             assigned_to=request.user,
@@ -1338,12 +1373,27 @@ def my_schedule_view(request):
         .order_by('scheduled_date', 'scheduled_time')
     )
 
+    overdue = [s for s in pending if s.scheduled_date < today]
+    today_jobs = [s for s in pending if s.scheduled_date == today]
+    upcoming = [s for s in pending if s.scheduled_date > today]
+
+    done_today = CleaningSchedule.objects.filter(
+        assigned_to=request.user,
+        status='Completed',
+        scheduled_date=today,
+    ).count()
+
     return render(
         request,
         'my_schedule.html',
         {
-            'schedules': schedules,
             'today': today,
+            'tomorrow': today + timedelta(days=1),
+            'overdue': overdue,
+            'today_jobs': today_jobs,
+            'upcoming': upcoming,
+            'done_today': done_today,
+            'pending_count': len(overdue) + len(today_jobs) + len(upcoming),
         }
     )
 

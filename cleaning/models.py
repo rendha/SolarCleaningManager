@@ -43,7 +43,7 @@ class Site(models.Model):
         blank=True
     )
 
-    latitude = models.FloatField(null=True)
+    latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True,blank=True)
 
     first_cleaning_done = models.BooleanField(

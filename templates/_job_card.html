@@ -1,0 +1,79 @@
+<div
+    class="card shadow-sm border-0 mb-3 job-card {% if late %}border-start border-4 border-danger{% elif schedule.scheduled_date == today %}border-start border-4 border-primary{% endif %}"
+    id="schedule-{{ schedule.id }}"
+>
+
+    <div class="card-body">
+
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+
+            <div class="fw-semibold">
+                {% if schedule.scheduled_time %}
+                    🕒 {{ schedule.scheduled_time|time:"g:i A" }}
+                {% else %}
+                    🕒 Any time
+                {% endif %}
+                {% if late %}
+                    <span class="text-danger small ms-1">· was due {{ schedule.scheduled_date|date:"D, j M" }}</span>
+                {% endif %}
+            </div>
+
+            {% if late %}
+                <span class="badge bg-danger">Overdue</span>
+            {% elif schedule.status == 'Rescheduled' %}
+                <span class="badge bg-warning text-dark">Rescheduled</span>
+            {% endif %}
+
+        </div>
+
+
+        <h5 class="fw-bold mb-1">{{ schedule.get_customer_name }}</h5>
+
+        {% with loc=schedule.get_location %}
+            {% if loc %}<div class="text-muted">📍 {{ loc }}</div>{% endif %}
+        {% endwith %}
+
+        {% if schedule.site and schedule.site.address and schedule.site.address != schedule.site.location %}
+            <div class="small text-muted">{{ schedule.site.address }}</div>
+        {% elif schedule.address and schedule.address != schedule.location %}
+            <div class="small text-muted">{{ schedule.address }}</div>
+        {% endif %}
+
+        {% if schedule.site and schedule.site.solar_kw %}
+            <div class="small mt-1">☀️ {{ schedule.site.solar_kw }} kW</div>
+        {% elif schedule.solar_kw %}
+            <div class="small mt-1">☀️ {{ schedule.solar_kw }} kW</div>
+        {% endif %}
+
+        {% if schedule.notes %}
+            <div class="alert alert-light border small py-2 mt-2 mb-0">📝 {{ schedule.notes }}</div>
+        {% endif %}
+
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+
+            {% if schedule.phone %}
+                <a href="tel:{{ schedule.phone }}" class="btn btn-outline-success btn-sm">📞 Call</a>
+            {% elif schedule.customer and schedule.customer.phone %}
+                <a href="tel:{{ schedule.customer.phone }}" class="btn btn-outline-success btn-sm">📞 Call</a>
+            {% endif %}
+
+            {% if schedule.site and schedule.site.google_map_link %}
+                <a href="{{ schedule.site.google_map_link }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">🗺️ Map</a>
+            {% endif %}
+
+            {% if schedule.site %}
+                <a href="{% url 'employee_add_job' %}?schedule={{ schedule.id }}" class="btn btn-dark btn-sm ms-auto">
+                    ✅ Done – Record Cleaning
+                </a>
+            {% else %}
+                <button type="button" class="btn btn-dark btn-sm ms-auto" onclick="markCompleted({{ schedule.id }}, this)">
+                    ✅ Mark Completed
+                </button>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>

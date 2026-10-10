@@ -2,37 +2,75 @@
 
 {% block content %}
 
-<div class="container py-4">
+<style>
+    /* Client view: hide other customers' private details */
+    body.client-view .private { display: none !important; }
+    body.client-view .client-only { display: inline !important; }
+    .client-only { display: none; }
 
-    <h1 class="mb-4">Canvassing</h1>
+    .distance-badge { font-variant-numeric: tabular-nums; min-width: 4.5rem; }
+</style>
+
+
+<div class="py-3">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+
+        <h1 class="mb-0">Location Search</h1>
+
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="clientViewToggle">
+            <label class="form-check-label" for="clientViewToggle">
+                Client view (hide names &amp; phone numbers)
+            </label>
+        </div>
+
+    </div>
 
 
     <!-- ============================================== -->
     <!-- SEARCH -->
     <!-- ============================================== -->
 
-    <div class="card shadow-sm p-4 mb-4">
+    <div class="card shadow-sm p-3 p-md-4 mb-4">
 
         <form method="get">
 
-            <div class="input-group">
+            <div class="row g-2">
 
-                <input
-                    type="text"
-                    name="q"
-                    value="{{ query }}"
-                    class="form-control form-control-lg"
-                    placeholder="Search customer or location..."
-                    autocomplete="off"
-                >
+                <div class="col-12 col-md">
+                    <input
+                        type="text"
+                        name="q"
+                        id="id_q"
+                        value="{{ query }}"
+                        class="form-control form-control-lg"
+                        placeholder="Paste a Google Maps link, or type a place or customer name"
+                        autocomplete="off"
+                    >
+                </div>
 
-                <button
-                    type="submit"
-                    class="btn btn-primary btn-lg"
-                >
-                    Search
-                </button>
+                <div class="col-6 col-md-auto">
+                    <select name="radius" id="id_radius" class="form-select form-select-lg" aria-label="Search radius">
+                        {% for r in radius_choices %}
+                            <option value="{{ r }}" {% if r == radius_km %}selected{% endif %}>Within {{ r }} km</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
+                <div class="col-6 col-md-auto d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        Search
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="form-text mt-2">
+                Not case-sensitive. Works with a shared Google Maps link
+                (e.g. <code>maps.app.goo.gl/…</code>), coordinates such as
+                <code>11.2588, 75.7804</code>, a place name like
+                <strong>Vellimadukunnu</strong>, or a customer's name or phone.
             </div>
 
         </form>
@@ -42,573 +80,332 @@
 
     {% if query %}
 
-        <h3 class="mb-4">
-            Search results for "{{ query }}"
-        </h3>
+        <!-- ============================================== -->
+        <!-- SEARCH CENTRE -->
+        <!-- ============================================== -->
+
+        {% if center %}
+
+            <div class="alert alert-light border d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+                <div>
+                    <strong>Searching around:</strong>
+                    <span class="{% if center_source == 'site' %}private{% endif %}">{{ center_label }}</span>
+                    {% if center_source == 'site' %}<span class="client-only">the selected site</span>{% endif %}
+
+                    <div class="small text-muted">
+                        {% if center_source == 'link' %}
+                            Exact point from the map link.
+                        {% elif center_source == 'site' %}
+                            Location of an existing installation.
+                        {% else %}
+                            Approximate centre of this place name.
+                        {% endif %}
+                    </div>
+                </div>
+
+                <a
+                    href="https://www.google.com/maps/search/?api=1&query={{ center.0 }},{{ center.1 }}"
+                    target="_blank"
+                    rel="noopener"
+                    class="btn btn-sm btn-outline-primary"
+                >
+                    🗺️ View point on map
+                </a>
+
+            </div>
+
+        {% elif not matching_customers and not matching_sites %}
+
+            <div class="alert alert-warning">
+                Couldn't find <strong>{{ query }}</strong> in your records or on the map.
+                Try a nearby town name, or paste the client's Google Maps location link.
+            </div>
+
+        {% elif matching_sites %}
+
+            <div class="alert alert-warning">
+                Found the customer, but couldn't place their site on the map.
+                Add a Google Maps link to the site, or click
+                <strong>Find missing locations</strong> below.
+            </div>
+
+        {% endif %}
 
 
         <!-- ============================================== -->
-        <!-- CUSTOMER RESULTS -->
+        <!-- INSTALLATIONS WITHIN THE RADIUS -->
+        <!-- ============================================== -->
+
+        {% if center %}
+
+            <div class="card shadow-sm mb-4">
+
+                <div class="card-header bg-dark text-white">
+                    {% if within_radius %}
+                        <h5 class="mb-0">
+                            ☀️ {{ within_radius|length }} installation{{ within_radius|length|pluralize }} within {{ radius_km|floatformat:"-1" }} km
+                        </h5>
+                    {% else %}
+                        <h5 class="mb-0">
+                            No installations within {{ radius_km|floatformat:"-1" }} km – nearest ones
+                        </h5>
+                    {% endif %}
+                </div>
+
+                <div class="card-body">
+
+                    {% with rows=within_radius|default:nearest_outside %}
+
+                        {% if rows %}
+
+                            <div class="table-responsive">
+
+                                <table class="table table-hover align-middle mb-0">
+
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Installation</th>
+                                            <th>Solar size</th>
+                                            <th>Distance</th>
+                                            <th class="private">Map</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+
+                                        {% for item in rows %}
+
+                                            <tr>
+
+                                                <td><strong>{{ forloop.counter }}</strong></td>
+
+                                                <td>
+                                                    <strong class="private">{{ item.site.customer.name }}</strong>
+
+                                                    {% if item.site.customer.phone %}
+                                                        <br class="private">
+                                                        <small class="text-muted private">📞 {{ item.site.customer.phone }}</small>
+                                                    {% endif %}
+
+                                                    <div>
+                                                        📍 {{ item.site.location|default:"—" }}
+                                                        {% if item.site.address %}
+                                                            <small class="text-muted private"> · {{ item.site.address }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    {% if item.site.solar_kw %}
+                                                        {{ item.site.solar_kw }} kW
+                                                    {% else %}
+                                                        <span class="text-muted">—</span>
+                                                    {% endif %}
+                                                </td>
+
+                                                <td>
+                                                    <span class="badge bg-success distance-badge">
+                                                        {{ item.distance }} km
+                                                    </span>
+                                                    {% if item.approx %}
+                                                        <div class="small text-muted" title="This site has no Google Maps link, so its position was estimated from its address.">
+                                                            ≈ approx.
+                                                        </div>
+                                                    {% endif %}
+                                                </td>
+
+                                                <td class="private">
+                                                    {% if item.site.google_map_link %}
+                                                        <a
+                                                            href="{{ item.site.google_map_link }}"
+                                                            target="_blank"
+                                                            rel="noopener"
+                                                            class="btn btn-sm btn-outline-primary"
+                                                        >🗺️ Maps</a>
+                                                    {% else %}
+                                                        <span class="text-muted small">No link</span>
+                                                    {% endif %}
+                                                </td>
+
+                                            </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                            <p class="small text-muted mt-3 mb-0">
+                                Straight-line distance. "≈ approx." means the site has no Google Maps link,
+                                so its position was estimated from its address.
+                            </p>
+
+                        {% else %}
+
+                            <p class="text-muted mb-0">
+                                None of your installations have a map location yet.
+                                Click <strong>Find missing locations</strong> below.
+                            </p>
+
+                        {% endif %}
+
+                    {% endwith %}
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
+
+        <!-- ============================================== -->
+        <!-- SITES WITHOUT COORDINATES, MATCHED BY AREA NAME -->
+        <!-- ============================================== -->
+
+        {% if area_matches %}
+
+            <div class="card shadow-sm mb-4">
+
+                <div class="card-header">
+                    <h5 class="mb-0">📍 Probably nearby (no map location, matched by area name)</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <p class="small text-muted">
+                        These sites have no coordinates, but their address mentions
+                        {% for w in area_words %}<strong>{{ w|title }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
+                    </p>
+
+                    <ul class="list-group list-group-flush">
+
+                        {% for site in area_matches %}
+
+                            <li class="list-group-item px-0">
+
+                                <strong class="private">{{ site.customer.name }}</strong>
+                                <span class="private"> – </span>
+                                📍 {{ site.location|default:site.address }}
+
+                                {% if site.solar_kw %}
+                                    · {{ site.solar_kw }} kW
+                                {% endif %}
+
+                                {% if site.customer.phone %}
+                                    <small class="text-muted private"> · 📞 {{ site.customer.phone }}</small>
+                                {% endif %}
+
+                            </li>
+
+                        {% endfor %}
+
+                    </ul>
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
+
+        <!-- ============================================== -->
+        <!-- MATCHING CUSTOMERS (text search) -->
         <!-- ============================================== -->
 
         {% if matching_customers %}
 
-            <h4 class="mb-3">
-                Customers
-            </h4>
+            <div class="private">
 
-            {% for customer in matching_customers %}
+                <h4 class="mb-3 mt-4">Customers matching "{{ query }}"</h4>
 
-                <div class="card shadow-sm mb-3">
+                {% for customer in matching_customers %}
 
-                    <div class="card-body">
+                    <div class="card shadow-sm mb-3">
 
-                        <h5 class="mb-1">
-                            {{ customer.name }}
-                        </h5>
+                        <div class="card-body">
 
-                        {% if customer.contact_person %}
-                            <p class="mb-1">
-                                <strong>Contact:</strong>
-                                {{ customer.contact_person }}
-                            </p>
-                        {% endif %}
+                            <h5 class="mb-1">{{ customer.name }}</h5>
 
-                        {% if customer.phone %}
-                            <p class="mb-2">
-                                <strong>Phone:</strong>
-                                {{ customer.phone }}
-                            </p>
-                        {% endif %}
-
-
-                        {% if customer.sites.all %}
-
-                            <hr>
-
-                            <h6>
-                                Sites
-                            </h6>
-
+                            {% if customer.phone %}
+                                <p class="mb-2">📞 {{ customer.phone }}</p>
+                            {% endif %}
 
                             {% for site in customer.sites.all %}
 
-                                <div class="border rounded p-3 mb-2">
+                                <div class="border rounded p-2 mb-2">
 
-                                    <div>
-                                        <strong>
-                                            📍 {{ site.location }}
-                                        </strong>
-                                    </div>
+                                    📍 {{ site.location|default:site.address }}
 
-                                    {% if site.address %}
-                                        <div class="text-muted mt-1">
-                                            {{ site.address }}
-                                        </div>
-                                    {% endif %}
+                                    {% if site.solar_kw %} · ☀️ {{ site.solar_kw }} kW{% endif %}
 
-                                    {% if site.solar_kw %}
-                                        <div class="mt-1">
-                                            ☀️ {{ site.solar_kw }} kW
-                                        </div>
-                                    {% endif %}
-
-                                    {% if site.latitude and site.longitude %}
-
-                                        <div class="small text-success mt-1">
-                                            ✓ Location coordinates available
-                                        </div>
-
+                                    {% if site.latitude is not None and site.longitude is not None %}
+                                        <span class="small text-success ms-2">✓ On map</span>
                                     {% else %}
-
-                                        <div class="small text-warning mt-1">
-                                            ⚠ Coordinates not available
-                                        </div>
-
+                                        <span class="small text-warning ms-2">⚠ No map location</span>
                                     {% endif %}
-
 
                                     {% if site.google_map_link %}
-
-                                        <a
-                                            href="{{ site.google_map_link }}"
-                                            target="_blank"
-                                            rel="noopener"
-                                            class="btn btn-sm btn-outline-primary mt-2"
-                                        >
-                                            🗺️ Open Google Maps
-                                        </a>
-
+                                        <a href="{{ site.google_map_link }}" target="_blank" rel="noopener"
+                                           class="btn btn-sm btn-outline-primary ms-2">🗺️ Maps</a>
                                     {% endif %}
 
                                 </div>
 
                             {% endfor %}
 
-                        {% endif %}
+                        </div>
 
                     </div>
 
-                </div>
-
-            {% endfor %}
-
-        {% endif %}
-
-
-
-        <!-- ============================================== -->
-        <!-- NEAREST EXISTING CUSTOMERS -->
-        <!-- ============================================== -->
-
-        {% if nearest_sites %}
-
-            <div class="card shadow-sm mt-5 mb-4">
-
-                <div class="card-header bg-dark text-white">
-
-                    <h5 class="mb-0">
-                        📍 10 Nearest Existing Customers
-                    </h5>
-
-                </div>
-
-
-                <div class="card-body">
-
-                    <p class="text-muted mb-4">
-
-                        These are the nearest existing customers
-                        to the searched location, based on latitude
-                        and longitude.
-
-                    </p>
-
-
-                    <div class="table-responsive">
-
-                        <table class="table table-hover align-middle">
-
-                            <thead class="table-light">
-
-                                <tr>
-
-                                    <th>#</th>
-
-                                    <th>
-                                        Customer
-                                    </th>
-
-                                    <th>
-                                        Location
-                                    </th>
-
-                                    <th>
-                                        Solar Size
-                                    </th>
-
-                                    <th>
-                                        Distance
-                                    </th>
-
-                                    <th>
-                                        Map
-                                    </th>
-
-                                </tr>
-
-                            </thead>
-
-
-                            <tbody>
-
-                                {% for item in nearest_sites %}
-
-                                    <tr>
-
-                                        <!-- NUMBER -->
-
-                                        <td>
-                                            <strong>
-                                                {{ forloop.counter }}
-                                            </strong>
-                                        </td>
-
-
-                                        <!-- CUSTOMER -->
-
-                                        <td>
-
-                                            <strong>
-                                                {{ item.site.customer.name }}
-                                            </strong>
-
-                                            {% if item.site.customer.phone %}
-
-                                                <br>
-
-                                                <small class="text-muted">
-                                                    📞 {{ item.site.customer.phone }}
-                                                </small>
-
-                                            {% endif %}
-
-                                        </td>
-
-
-                                        <!-- LOCATION -->
-
-                                        <td>
-
-                                            {{ item.site.location }}
-
-                                            {% if item.site.address %}
-
-                                                <br>
-
-                                                <small class="text-muted">
-                                                    {{ item.site.address }}
-                                                </small>
-
-                                            {% endif %}
-
-                                        </td>
-
-
-                                        <!-- SOLAR SIZE -->
-
-                                        <td>
-
-                                            {% if item.site.solar_kw %}
-
-                                                ☀️ {{ item.site.solar_kw }} kW
-
-                                            {% else %}
-
-                                                <span class="text-muted">
-                                                    —
-                                                </span>
-
-                                            {% endif %}
-
-                                        </td>
-
-
-                                        <!-- DISTANCE -->
-
-                                        <td>
-
-                                            <span class="badge bg-success">
-
-                                                {{ item.distance }} km
-
-                                            </span>
-
-                                        </td>
-
-
-                                        <!-- GOOGLE MAPS -->
-
-                                        <td>
-
-                                            {% if item.site.google_map_link %}
-
-                                                <a
-                                                    href="{{ item.site.google_map_link }}"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                    class="btn btn-sm btn-outline-primary"
-                                                >
-                                                    🗺️ Maps
-                                                </a>
-
-                                            {% else %}
-
-                                                <span class="text-muted small">
-                                                    No map
-                                                </span>
-
-                                            {% endif %}
-
-                                        </td>
-
-                                    </tr>
-
-                                {% endfor %}
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-        {% elif matching_sites %}
-
-            <div class="alert alert-warning mt-4">
-
-                <strong>
-                    Nearest customers cannot be calculated yet.
-                </strong>
-
-                <br>
-
-                The searched site does not currently have
-                latitude and longitude coordinates.
+                {% endfor %}
 
             </div>
 
         {% endif %}
-
-
-
-        <!-- ============================================== -->
-        <!-- SITE RESULTS -->
-        <!-- ============================================== -->
-
-        {% if matching_sites %}
-
-            <h4 class="mb-3 mt-5">
-                Sites matching "{{ query }}"
-            </h4>
-
-
-            {% for site in matching_sites %}
-
-                <div class="card shadow-sm mb-3">
-
-                    <div class="card-body">
-
-                        <h5>
-                            📍 {{ site.location }}
-                        </h5>
-
-
-                        <p class="mb-1">
-
-                            <strong>
-                                Customer:
-                            </strong>
-
-                            {{ site.customer.name }}
-
-                        </p>
-
-
-                        {% if site.customer.contact_person %}
-
-                            <p class="mb-1">
-
-                                <strong>
-                                    Contact:
-                                </strong>
-
-                                {{ site.customer.contact_person }}
-
-                            </p>
-
-                        {% endif %}
-
-
-                        {% if site.customer.phone %}
-
-                            <p class="mb-1">
-
-                                <strong>
-                                    Phone:
-                                </strong>
-
-                                {{ site.customer.phone }}
-
-                            </p>
-
-                        {% endif %}
-
-
-                        {% if site.solar_kw %}
-
-                            <p class="mb-1">
-
-                                <strong>
-                                    Solar Capacity:
-                                </strong>
-
-                                ☀️ {{ site.solar_kw }} kW
-
-                            </p>
-
-                        {% endif %}
-
-
-                        {% if site.latitude and site.longitude %}
-
-                            <p class="text-success mb-1">
-
-                                ✓ Coordinates available
-
-                            </p>
-
-                        {% else %}
-
-                            <p class="text-warning mb-1">
-
-                                ⚠ Coordinates not available
-
-                            </p>
-
-                        {% endif %}
-
-
-                        {% if site.google_map_link %}
-
-                            <a
-                                href="{{ site.google_map_link }}"
-                                target="_blank"
-                                rel="noopener"
-                                class="btn btn-primary mt-2"
-                            >
-                                🗺️ Open Google Maps
-                            </a>
-
-                        {% endif %}
-
-                    </div>
-
-                </div>
-
-            {% endfor %}
-
-        {% endif %}
-
-
-
-        <!-- ============================================== -->
-        <!-- SAME-AREA CUSTOMERS -->
-        <!-- ============================================== -->
-
-        {% if nearby_sites %}
-
-            <hr class="my-5">
-
-
-            <h3 class="mb-3">
-                📍 Other Customers Near This Location
-            </h3>
-
-
-            <p class="text-muted">
-                Existing customers found using matching
-                location information.
-            </p>
-
-
-            {% for site in nearby_sites %}
-
-                <div class="card shadow-sm mb-3">
-
-                    <div class="card-body">
-
-                        <h5>
-                            {{ site.customer.name }}
-                        </h5>
-
-
-                        <p class="mb-1">
-                            📍 {{ site.location }}
-                        </p>
-
-
-                        {% if site.address %}
-
-                            <p class="text-muted mb-1">
-                                {{ site.address }}
-                            </p>
-
-                        {% endif %}
-
-
-                        {% if site.solar_kw %}
-
-                            <p class="mb-1">
-                                ☀️ {{ site.solar_kw }} kW
-                            </p>
-
-                        {% endif %}
-
-
-                        {% if site.customer.phone %}
-
-                            <p class="mb-2">
-                                📞 {{ site.customer.phone }}
-                            </p>
-
-                        {% endif %}
-
-
-                        {% if site.google_map_link %}
-
-                            <a
-                                href="{{ site.google_map_link }}"
-                                target="_blank"
-                                rel="noopener"
-                                class="btn btn-outline-primary btn-sm"
-                            >
-                                🗺️ Open Google Maps
-                            </a>
-
-                        {% endif %}
-
-                    </div>
-
-                </div>
-
-            {% endfor %}
-
-        {% endif %}
-
-
-
-        <!-- ============================================== -->
-        <!-- NOTHING FOUND -->
-        <!-- ============================================== -->
-
-        {% if not matching_customers and not matching_sites %}
-
-            <div class="alert alert-warning">
-
-                No customer or site found for
-
-                <strong>
-                    {{ query }}
-                </strong>.
-
-            </div>
-
-        {% endif %}
-
 
     {% else %}
 
-
-        <!-- ============================================== -->
-        <!-- INITIAL PAGE -->
-        <!-- ============================================== -->
-
         <div class="alert alert-info">
-
-            Search for a customer name or location.
-
+            Paste a new client's Google Maps location, or type their area name,
+            to see the installations you've already done near them.
             <br><br>
+            For example: <strong>vellimadukunnu</strong>, <strong>Karaparamba</strong>,
+            or a link from Google Maps → Share.
+        </div>
 
-            For example:
+    {% endif %}
 
-            <strong>Sunitha</strong>,
-            <strong>VELLIMADUKUNNU</strong>,
-            <strong>KARAPARAMBA</strong>
+
+    <!-- ============================================== -->
+    <!-- SITES WITHOUT COORDINATES -->
+    <!-- ============================================== -->
+
+    {% if missing_coordinates %}
+
+        <div class="card border-warning mt-4 private">
+
+            <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+                <div>
+                    <strong>{{ missing_coordinates }} site{{ missing_coordinates|pluralize }} without a map location.</strong>
+                    <div class="small text-muted">
+                        They can't be measured by distance yet. This reads their Google Maps link,
+                        or estimates the position from the address. Up to 15 sites per click.
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'fill_site_coordinates' %}" id="fillCoordsForm">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning" id="fillCoordsBtn">
+                        Find missing locations
+                    </button>
+                </form>
+
+            </div>
 
         </div>
 
@@ -616,4 +413,41 @@
 
 </div>
 
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+(function () {
+
+    /* Client view switch, remembered on this device */
+    const toggle = document.getElementById('clientViewToggle');
+
+    function apply(on) {
+        document.body.classList.toggle('client-view', on);
+    }
+
+    let saved = false;
+    try { saved = localStorage.getItem('clientView') === '1'; } catch (e) {}
+
+    toggle.checked = saved;
+    apply(saved);
+
+    toggle.addEventListener('change', function () {
+        apply(this.checked);
+        try { localStorage.setItem('clientView', this.checked ? '1' : '0'); } catch (e) {}
+    });
+
+    /* Show progress while locations are being looked up */
+    const form = document.getElementById('fillCoordsForm');
+    if (form) {
+        form.addEventListener('submit', function () {
+            const btn = document.getElementById('fillCoordsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Looking up… (about 20 seconds)';
+        });
+    }
+
+})();
+</script>
 {% endblock %}

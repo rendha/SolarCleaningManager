@@ -1,222 +1,314 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+<style>
+    .day-heading {
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6c757d;
+        margin: 1.25rem 0 0.5rem;
+    }
+
+    .day-heading .count { font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+    #myCalendar .fc-event { cursor: pointer; }
+    #myCalendar .fc-daygrid-event .fc-event-title { white-space: normal; }
+
+    @media (max-width: 700px) {
+        #myCalendar .fc .fc-toolbar { flex-direction: column; gap: 8px; }
+        #myCalendar .fc .fc-toolbar-title { font-size: 1.2rem; }
+    }
+
+    /* Month view: time on its own line, so nothing gets cut off */
+    .fc-daygrid-block-event .fc-event-main-frame {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .fc-daygrid-block-event .fc-event-time {
+        font-weight: 700;
+        overflow: visible;
+    }
+    .fc-daygrid-block-event .fc-event-title {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    /* Keep the original calendar look (stop Bootstrap styling dates as links) */
+    .fc {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #222;
+    }
+    .fc a,
+    .fc a:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+    .fc .fc-col-header-cell-cushion {
+        font-weight: 700;
+        padding: 6px 4px;
+    }
+    .fc .fc-daygrid-day-number {
+        padding: 6px;
+    }
+    .fc .fc-day-other .fc-daygrid-day-number {
+        color: #aaa;
+    }
+    .fc .fc-toolbar-title {
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 700;
+    }
+    .fc .fc-event,
+    .fc .fc-event a {
+        color: #fff;
+    }
+    .fc .fc-list-event a,
+    .fc .fc-list-event-title {
+        color: #222;
+    }
+</style>
+{% endblock %}
+
+
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
 
-    <h3 class="fw-bold mb-0">My Jobs</h3>
+    <div>
+        <h3 class="fw-bold mb-0">My Jobs</h3>
+        <div class="text-muted">{{ today|date:"l, j F Y" }}</div>
+    </div>
 
-    <span class="badge bg-dark fs-6">
-        {{ schedules|length }} pending
-    </span>
+    <div class="text-end small">
+        <div><strong>{{ today_jobs|length }}</strong> today{% if done_today %} · {{ done_today }} done{% endif %}</div>
+        <div class="text-muted">{{ pending_count }} pending in total</div>
+    </div>
 
 </div>
 
 
-{% for schedule in schedules %}
+<!-- Tabs -->
+<ul class="nav nav-pills mb-2" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-list" data-bs-toggle="pill" data-bs-target="#pane-list" type="button" role="tab">
+            📋 Jobs
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-calendar" data-bs-toggle="pill" data-bs-target="#pane-calendar" type="button" role="tab">
+            📅 Calendar
+        </button>
+    </li>
+</ul>
 
-    <div
-        class="card shadow-sm border-0 mb-3
-            {% if schedule.scheduled_date < today %}border-start border-4 border-danger
-            {% elif schedule.scheduled_date == today %}border-start border-4 border-primary{% endif %}"
-        id="schedule-{{ schedule.id }}"
-    >
 
-        <div class="card-body">
+<div class="tab-content">
 
-            <!-- Date / time / badge -->
-            <div class="d-flex justify-content-between align-items-start mb-2">
+    <!-- ===================== LIST ===================== -->
 
-                <div>
+    <div class="tab-pane fade show active" id="pane-list" role="tabpanel">
 
-                    <div class="fw-semibold">
+        {% if overdue %}
+            <div class="day-heading text-danger">
+                Overdue <span class="count">({{ overdue|length }})</span>
+            </div>
+            {% for schedule in overdue %}
+                {% include '_job_card.html' with late=True %}
+            {% endfor %}
+        {% endif %}
 
-                        {% if schedule.scheduled_date == today %}
-                            Today
-                        {% else %}
-                            {{ schedule.scheduled_date|date:"D, d M Y" }}
-                        {% endif %}
 
-                        {% if schedule.scheduled_time %}
-                            · {{ schedule.scheduled_time|time:"g:i A" }}
-                        {% endif %}
+        <div class="day-heading">
+            Today <span class="count">· {{ today|date:"D, j M" }}</span>
+        </div>
 
-                    </div>
+        {% for schedule in today_jobs %}
+            {% include '_job_card.html' with late=False %}
+        {% empty %}
+            <div class="text-muted border rounded bg-white p-3 mb-3">
+                No jobs today 🎉
+            </div>
+        {% endfor %}
 
+
+        {% if upcoming %}
+
+            {% regroup upcoming by scheduled_date as days %}
+
+            {% for day in days %}
+
+                <div class="day-heading">
+                    {% if day.grouper == tomorrow %}
+                        Tomorrow <span class="count">· {{ day.grouper|date:"D, j M" }}</span>
+                    {% else %}
+                        {{ day.grouper|date:"l" }} <span class="count">· {{ day.grouper|date:"j M Y" }}</span>
+                    {% endif %}
+                    <span class="count">({{ day.list|length }})</span>
                 </div>
 
-                {% if schedule.scheduled_date < today %}
-                    <span class="badge bg-danger">Overdue</span>
-                {% elif schedule.status == 'Rescheduled' %}
-                    <span class="badge bg-warning text-dark">Rescheduled</span>
-                {% else %}
-                    <span class="badge bg-primary">Scheduled</span>
-                {% endif %}
+                {% for schedule in day.list %}
+                    {% include '_job_card.html' with late=False %}
+                {% endfor %}
 
+            {% endfor %}
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- ===================== CALENDAR ===================== -->
+
+    <div class="tab-pane fade" id="pane-calendar" role="tabpanel">
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-2 p-md-3">
+                <div id="myCalendar"></div>
             </div>
+        </div>
 
-
-            <!-- Customer -->
-            <h5 class="fw-bold mb-1">
-                {{ schedule.get_customer_name }}
-            </h5>
-
-            {% with loc=schedule.get_location %}
-                {% if loc %}
-                    <div class="text-muted">📍 {{ loc }}</div>
-                {% endif %}
-            {% endwith %}
-
-            {% if schedule.site and schedule.site.address %}
-                <div class="small text-muted">{{ schedule.site.address }}</div>
-            {% elif schedule.address %}
-                <div class="small text-muted">{{ schedule.address }}</div>
-            {% endif %}
-
-            {% if schedule.site and schedule.site.solar_kw %}
-                <div class="small mt-1">☀️ {{ schedule.site.solar_kw }} kW</div>
-            {% elif schedule.solar_kw %}
-                <div class="small mt-1">☀️ {{ schedule.solar_kw }} kW</div>
-            {% endif %}
-
-            {% if schedule.notes %}
-                <div class="alert alert-light border small py-2 mt-2 mb-0">
-                    📝 {{ schedule.notes }}
+        <!-- Job details shown under the calendar when a job is tapped -->
+        <div id="calDetail" class="card shadow-sm border-0 mt-3" hidden>
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h5 id="calName" class="fw-bold mb-1"></h5>
+                    <button type="button" class="btn-close" aria-label="Close" onclick="document.getElementById('calDetail').hidden = true"></button>
                 </div>
-            {% endif %}
-
-
-            <!-- Actions -->
-            <div class="d-flex flex-wrap gap-2 mt-3">
-
-                {% if schedule.phone %}
-
-                    <a href="tel:{{ schedule.phone }}" class="btn btn-outline-success btn-sm">
-                        📞 Call
-                    </a>
-
-                {% elif schedule.customer and schedule.customer.phone %}
-
-                    <a href="tel:{{ schedule.customer.phone }}" class="btn btn-outline-success btn-sm">
-                        📞 Call
-                    </a>
-
-                {% endif %}
-
-
-                {% if schedule.site and schedule.site.google_map_link %}
-
-                    <a
-                        href="{{ schedule.site.google_map_link }}"
-                        target="_blank"
-                        rel="noopener"
-                        class="btn btn-outline-primary btn-sm"
-                    >
-                        🗺️ Map
-                    </a>
-
-                {% endif %}
-
-
-                {% if schedule.site %}
-
-                    <!-- Existing customer with a site: record the cleaning -->
-                    <a
-                        href="{% url 'employee_add_job' %}?schedule={{ schedule.id }}"
-                        class="btn btn-dark btn-sm ms-auto"
-                    >
-                        ✅ Done – Record Cleaning
-                    </a>
-
-                {% else %}
-
-                    <!-- New / non-customer: just mark it completed -->
-                    <button
-                        type="button"
-                        class="btn btn-dark btn-sm ms-auto"
-                        onclick="markCompleted({{ schedule.id }}, this)"
-                    >
-                        ✅ Mark Completed
-                    </button>
-
-                {% endif %}
-
+                <div id="calWhen" class="fw-semibold mb-1"></div>
+                <div id="calLocation" class="text-muted"></div>
+                <div id="calNotes" class="small mt-1"></div>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <a id="calCall" class="btn btn-outline-success btn-sm">📞 Call</a>
+                    <a id="calMap" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">🗺️ Map</a>
+                    <a id="calRecord" class="btn btn-dark btn-sm ms-auto">✅ Done – Record Cleaning</a>
+                </div>
             </div>
-
         </div>
 
     </div>
 
-{% empty %}
-
-    <div class="text-center text-muted py-5">
-
-        <div style="font-size: 40px;">🎉</div>
-
-        <p class="mt-2 mb-0">No pending jobs right now.</p>
-
-    </div>
-
-{% endfor %}
+</div>
 
 {% endblock %}
 
 
 {% block extra_js %}
-
 <script>
+
+/* ---------- Mark completed (jobs without a site) ---------- */
 
 function markCompleted(scheduleId, button) {
 
-    if (!confirm("Mark this job as completed?")) {
+    button.disabled = true;
+    button.textContent = 'Saving…';
+
+    fetch(`/schedule/${scheduleId}/status/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'status=Completed',
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`schedule-${scheduleId}`).remove();
+            } else {
+                alert(data.error || 'Could not update status.');
+                button.disabled = false;
+                button.textContent = '✅ Mark Completed';
+            }
+        })
+        .catch(() => {
+            alert('No internet connection. Please try again.');
+            button.disabled = false;
+            button.textContent = '✅ Mark Completed';
+        });
+}
+
+
+/* ---------- Calendar tab (built the first time it is opened) ---------- */
+
+let myCalendar = null;
+
+document.getElementById('tab-calendar').addEventListener('shown.bs.tab', function () {
+
+    if (myCalendar) {
+        myCalendar.updateSize();
         return;
     }
 
-    button.disabled = true;
+    myCalendar = new FullCalendar.Calendar(document.getElementById('myCalendar'), {
 
-    fetch(`/schedule/${scheduleId}/status/`, {
+        initialView: 'dayGridMonth',
 
-        method: "POST",
-
-        headers: {
-            "X-CSRFToken": "{{ csrf_token }}",
-            "Content-Type": "application/x-www-form-urlencoded",
+        // "List" = the next 30 days from today, so upcoming jobs always show
+        views: {
+            listUpcoming: {
+                type: 'list',
+                duration: { days: 30 },
+                buttonText: 'List',
+                noEventsContent: 'No cleanings in the next 30 days',
+            },
         },
 
-        body: "status=Completed",
+        height: 'auto',
 
-    })
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listUpcoming' },
+        buttonText: { today: 'Today', month: 'Month', list: 'List' },
 
-        .then(response => response.json())
+        events: "{% url 'my_schedule_events_api' %}",
 
-        .then(data => {
+        eventDisplay: 'block',
+        dayMaxEvents: true,
+        nextDayThreshold: '23:59:59',
+        eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
+        noEventsContent: 'No jobs this week',
 
-            if (data.success) {
+        eventClick: function (info) {
 
-                document
-                    .getElementById(`schedule-${scheduleId}`)
-                    .remove();
+            info.jsEvent.preventDefault();
 
-            } else {
+            const e = info.event;
+            const p = e.extendedProps;
 
-                alert(data.error || "Could not update status.");
+            document.getElementById('calName').textContent = p.customer_name || e.title;
 
-                button.disabled = false;
+            document.getElementById('calWhen').textContent =
+                e.start.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+                + (e.allDay ? '' : ' · ' + e.start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }))
+                + (p.status !== 'Scheduled' ? ' · ' + p.status : '');
 
-            }
+            document.getElementById('calLocation').textContent =
+                [p.location, p.solar_kw ? p.solar_kw + ' kW' : ''].filter(Boolean).join(' · ');
 
-        })
+            document.getElementById('calNotes').textContent = p.notes ? '📝 ' + p.notes : '';
 
-        .catch(() => {
+            const call = document.getElementById('calCall');
+            call.hidden = !p.phone;
+            call.href = p.phone ? 'tel:' + p.phone : '#';
 
-            alert("Network error. Please try again.");
+            const map = document.getElementById('calMap');
+            map.hidden = !p.map_link;
+            map.href = p.map_link || '#';
 
-            button.disabled = false;
+            const record = document.getElementById('calRecord');
+            record.hidden = !p.record_url || p.status === 'Completed';
+            record.href = p.record_url || '#';
 
-        });
+            const detail = document.getElementById('calDetail');
+            detail.hidden = false;
+            detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        },
+    });
 
-}
+    myCalendar.render();
+});
 
 </script>
-
 {% endblock %}

@@ -1,405 +1,164 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends 'base.html' %}
 
-<head>
+{% block extra_head %}
+<link
+    href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
+    rel="stylesheet"
+>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
-    <meta charset="UTF-8">
+<style>
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    .calendar-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
 
-    <title>Cleaning Schedule</title>
+    .fc-event { cursor: pointer; font-size: 13px; }
 
-    <!-- FullCalendar -->
-    <link
-        href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
-        rel="stylesheet"
-    >
+    /* Event text wraps instead of being cut off */
+    .fc-daygrid-event .fc-event-title,
+    .fc-daygrid-event .fc-event-time {
+        white-space: normal;
+    }
 
-    <script
-        src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js">
-    </script>
+    /* ---------- legend ---------- */
 
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+        font-size: 13px;
+    }
 
-    <style>
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
 
-        * {
-            box-sizing: border-box;
+    /* ---------- details popup (own names, so Bootstrap's .modal doesn't interfere) ---------- */
+
+    .sched-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+
+    .sched-modal.open { display: flex; }
+
+    .sched-modal-box {
+        background: #fff;
+        width: 100%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        border-radius: 12px;
+        padding: 24px;
+        position: relative;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .sched-close {
+        position: absolute;
+        top: 8px;
+        right: 14px;
+        font-size: 28px;
+        line-height: 1;
+        background: none;
+        border: 0;
+        color: #666;
+    }
+
+    .detail-label {
+        font-size: 12px;
+        color: #777;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 2px;
+    }
+
+    .detail-value { font-size: 15px; font-weight: 500; margin-bottom: 12px; }
+
+    /* ---------- phones ---------- */
+
+    @media (max-width: 700px) {
+
+        .calendar-card { padding: 8px; }
+
+        .fc .fc-toolbar {
+            flex-direction: column;
+            gap: 8px;
         }
 
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family:
-                Arial,
-                Helvetica,
-                sans-serif;
-            background: #f5f7fa;
-            color: #222;
-        }
-
-        .page-header {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            align-items: center;
-
-            margin-bottom: 20px;
-        }
-
-        .page-header h1 {
-
-            margin: 0;
-
-            font-size: 28px;
-        }
-
-        .add-button {
-
-            display: inline-block;
-
-            padding: 11px 18px;
-
-            background: #3B73B9;
-
-            color: white;
-
-            text-decoration: none;
-
-            border-radius: 8px;
-
-            font-weight: 600;
-        }
-
-        .add-button:hover {
-
-            opacity: 0.9;
-        }
-
-        .calendar-card {
-
-            background: white;
-
-            border-radius: 12px;
-
-            padding: 20px;
-
-            box-shadow:
-                0 2px 12px
-                rgba(0,0,0,0.08);
-        }
-
-        #calendar {
-
-            max-width: 100%;
-        }
-
-
-        /* ==========================
-           EVENT
-           ========================== */
-
-        .fc-event {
-
-            cursor: pointer;
-
-            border-radius: 5px;
-
-            padding: 2px 4px;
-
-            font-size: 13px;
-        }
-
-
-        /* ==========================
-           MODAL
-           ========================== */
-
-        .modal {
-
-            display: none;
-
-            position: fixed;
-
-            z-index: 9999;
-
-            left: 0;
-
-            top: 0;
-
-            width: 100%;
-
-            height: 100%;
-
-            background:
-                rgba(0,0,0,0.5);
-
-            align-items: center;
-
-            justify-content: center;
-
-            padding: 20px;
-        }
-
-        .modal.show {
-
-            display: flex;
-        }
-
-        .modal-content {
-
-            background: white;
-
-            width: 100%;
-
-            max-width: 500px;
-
-            border-radius: 12px;
-
-            padding: 25px;
-
-            position: relative;
-
-            box-shadow:
-                0 10px 40px
-                rgba(0,0,0,0.2);
-        }
-
-        .modal-close {
-
-            position: absolute;
-
-            top: 12px;
-
-            right: 18px;
-
-            font-size: 28px;
-
-            cursor: pointer;
-
-            color: #666;
-        }
-
-        .modal-title {
-
-            margin-top: 0;
-
-            margin-bottom: 20px;
-
-            padding-right: 30px;
-        }
-
-        .detail-row {
-
-            margin-bottom: 12px;
-        }
-
-        .detail-label {
-
-            font-size: 12px;
-
-            color: #777;
-
-            margin-bottom: 3px;
-
-            text-transform: uppercase;
-        }
-
-        .detail-value {
-
-            font-size: 15px;
-
-            font-weight: 500;
-        }
-
-
-        /* ==========================
-           STATUS
-           ========================== */
-
-        .status-select {
-
-            width: 100%;
-
-            padding: 10px;
-
-            border-radius: 7px;
-
-            border: 1px solid #ccc;
-
-            margin-top: 5px;
-        }
-
-
-        /* ==========================
-           BUTTONS
-           ========================== */
-
-        .modal-actions {
-
-            display: flex;
-
-            gap: 10px;
-
-            margin-top: 25px;
-
-            flex-wrap: wrap;
-        }
-
-        .btn {
-
-            padding: 10px 16px;
-
-            border-radius: 7px;
-
-            border: none;
-
-            cursor: pointer;
-
-            text-decoration: none;
-
-            font-weight: 600;
-
-            display: inline-block;
-        }
-
-        .btn-edit {
-
-            background: #3B73B9;
-
-            color: white;
-        }
-
-        .btn-delete {
-
-            background: #dc3545;
-
-            color: white;
-        }
-
-        .btn-cancel {
-
-            background: #eee;
-
-            color: #333;
-        }
-
-
-        /* ==========================
-           LEGEND
-           ========================== */
-
-        .legend {
-
-            display: flex;
-
-            gap: 20px;
-
-            flex-wrap: wrap;
-
-            margin-top: 20px;
-
-            padding-top: 15px;
-
-            border-top: 1px solid #eee;
-
-            font-size: 13px;
-        }
-
-        .legend-item {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 6px;
-        }
-
-        .legend-dot {
-
-            width: 12px;
-
-            height: 12px;
-
-            border-radius: 50%;
-        }
-
-        .scheduled {
-            background: #3B73B9;
-        }
-
-        .completed {
-            background: #28a745;
-        }
-
-        .rescheduled {
-            background: #f0ad4e;
-        }
-
-        .cancelled {
-            background: #dc3545;
-        }
-
-
-        /* ==========================
-           MOBILE
-           ========================== */
-
-        @media (max-width: 700px) {
-
-            body {
-                padding: 10px;
-            }
-
-            .page-header {
-
-                align-items: flex-start;
-
-                gap: 10px;
-
-                flex-direction: column;
-            }
-
-            .calendar-card {
-                padding: 8px;
-            }
-
-            .fc-toolbar {
-
-                flex-direction: column;
-
-                gap: 8px;
-            }
-
-            .fc-toolbar-chunk {
-
-                margin-bottom: 5px;
-            }
-
-        }
-
-    </style>
-
-</head>
-
-
-<body>
-
-
-<div class="page-header">
-
-    <h1>
-        Cleaning Schedule
-    </h1>
-
-    <a
-        href="{% url 'add_schedule' %}"
-        class="add-button"
-    >
+        .fc .fc-toolbar-title { font-size: 1.3rem; }
+    }
+
+
+    /* Month view: time on its own line, so nothing gets cut off */
+    .fc-daygrid-block-event .fc-event-main-frame {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .fc-daygrid-block-event .fc-event-time {
+        font-weight: 700;
+        overflow: visible;
+    }
+    .fc-daygrid-block-event .fc-event-title {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    /* Keep the original calendar look (stop Bootstrap styling dates as links) */
+    .fc {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #222;
+    }
+    .fc a,
+    .fc a:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+    .fc .fc-col-header-cell-cushion {
+        font-weight: 700;
+        padding: 6px 4px;
+    }
+    .fc .fc-daygrid-day-number {
+        padding: 6px;
+    }
+    .fc .fc-day-other .fc-daygrid-day-number {
+        color: #aaa;
+    }
+    .fc .fc-toolbar-title {
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 700;
+    }
+    .fc .fc-event,
+    .fc .fc-event a {
+        color: #fff;
+    }
+    .fc .fc-list-event a,
+    .fc .fc-list-event-title {
+        color: #222;
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+
+    <h2 class="fw-bold mb-0">Cleaning Schedule</h2>
+
+    <a href="{% url 'add_schedule' %}" class="btn btn-primary">
         + Add Schedule
     </a>
 
@@ -410,833 +169,314 @@
 
     <div id="calendar"></div>
 
-
     <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#3B73B9"></span> Scheduled</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#28a745"></span> Completed</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#f0ad4e"></span> Rescheduled</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#dc3545"></span> Cancelled</div>
+    </div>
 
-        <div class="legend-item">
+</div>
 
-            <span class="legend-dot scheduled"></span>
 
-            Scheduled
+<!-- ========================== DETAILS POPUP ========================== -->
 
+<div id="scheduleModal" class="sched-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+    <div class="sched-modal-box">
+
+        <button type="button" class="sched-close" onclick="closeModal()" aria-label="Close">&times;</button>
+
+        <h4 id="modalTitle" class="mb-3 pe-4">Cleaning Schedule</h4>
+
+        <div class="detail-label">When</div>
+        <div id="modalWhen" class="detail-value"></div>
+
+        <div class="detail-label">Phone</div>
+        <div id="modalPhone" class="detail-value"></div>
+
+        <div class="detail-label">Location</div>
+        <div id="modalLocation" class="detail-value"></div>
+
+        <div class="detail-label">Address</div>
+        <div id="modalAddress" class="detail-value"></div>
+
+        <div class="detail-label">Assigned to</div>
+        <div id="modalAssigned" class="detail-value"></div>
+
+        <div class="detail-label">Notes</div>
+        <div id="modalNotes" class="detail-value"></div>
+
+        <label for="modalStatus" class="detail-label d-block">Status</label>
+        <select id="modalStatus" class="form-select mb-3">
+            <option value="Scheduled">Scheduled</option>
+            <option value="Completed">Completed</option>
+            <option value="Rescheduled">Rescheduled</option>
+            <option value="Cancelled">Cancelled</option>
+        </select>
+
+        <!-- Delete confirmation lives in the popup itself -->
+        <div id="deleteConfirm" class="alert alert-danger py-2 d-none">
+            Delete this schedule?
+            <div class="mt-2 d-flex gap-2">
+                <button type="button" id="deleteYes" class="btn btn-sm btn-danger">Yes, delete</button>
+                <button type="button" id="deleteNo" class="btn btn-sm btn-outline-secondary">Keep it</button>
+            </div>
         </div>
 
-
-        <div class="legend-item">
-
-            <span class="legend-dot completed"></span>
-
-            Completed
-
-        </div>
-
-
-        <div class="legend-item">
-
-            <span class="legend-dot rescheduled"></span>
-
-            Rescheduled
-
-        </div>
-
-
-        <div class="legend-item">
-
-            <span class="legend-dot cancelled"></span>
-
-            Cancelled
-
+        <div class="d-flex flex-wrap gap-2">
+            <a id="editButton" href="#" class="btn btn-primary">Edit</a>
+            <a id="mapButton" href="#" target="_blank" rel="noopener" class="btn btn-outline-primary">🗺️ Map</a>
+            <button id="deleteButton" type="button" class="btn btn-outline-danger">Delete</button>
+            <button type="button" class="btn btn-light ms-auto" onclick="closeModal()">Close</button>
         </div>
 
     </div>
 
 </div>
 
+{% endblock %}
 
 
-<!-- ==========================
-     DETAILS MODAL
-     ========================== -->
-
-<div
-    id="scheduleModal"
-    class="modal"
->
-
-    <div class="modal-content">
-
-        <span
-            class="modal-close"
-            onclick="closeModal()"
-        >
-            &times;
-        </span>
-
-
-        <h2
-            id="modalTitle"
-            class="modal-title"
-        >
-            Cleaning Schedule
-        </h2>
-
-
-        <div class="detail-row">
-
-            <div class="detail-label">
-                Customer
-            </div>
-
-            <div
-                id="modalCustomer"
-                class="detail-value"
-            ></div>
-
-        </div>
-
-
-        <div class="detail-row">
-
-            <div class="detail-label">
-                Phone
-            </div>
-
-            <div
-                id="modalPhone"
-                class="detail-value"
-            ></div>
-
-        </div>
-
-
-        <div class="detail-row">
-
-            <div class="detail-label">
-                Location
-            </div>
-
-            <div
-                id="modalLocation"
-                class="detail-value"
-            ></div>
-
-        </div>
-
-
-        <div class="detail-row">
-
-            <div class="detail-label">
-                Address
-            </div>
-
-            <div
-                id="modalAddress"
-                class="detail-value"
-            ></div>
-
-        </div>
-
-
-        <div class="detail-row">
-
-            <div class="detail-label">
-                Status
-            </div>
-
-            <select
-                id="modalStatus"
-                class="status-select"
-            >
-
-                <option value="Scheduled">
-                    Scheduled
-                </option>
-
-                <option value="Completed">
-                    Completed
-                </option>
-
-                <option value="Rescheduled">
-                    Rescheduled
-                </option>
-
-                <option value="Cancelled">
-                    Cancelled
-                </option>
-
-            </select>
-
-        </div>
-
-
-        <div class="detail-row">
-
-            <div class="detail-label">
-                Notes
-            </div>
-
-            <div
-                id="modalNotes"
-                class="detail-value"
-            ></div>
-
-        </div>
-
-
-        <div class="modal-actions">
-
-            <a
-                id="editButton"
-                href="#"
-                class="btn btn-edit"
-            >
-                Edit
-            </a>
-
-
-            <button
-                id="deleteButton"
-                class="btn btn-delete"
-                type="button"
-            >
-                Delete
-            </button>
-
-
-            <button
-                class="btn btn-cancel"
-                type="button"
-                onclick="closeModal()"
-            >
-                Close
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-
+{% block extra_js %}
 <script>
 
-document.addEventListener(
-    'DOMContentLoaded',
-    function() {
+const STATUS_COLORS = {
+    Scheduled: '#3B73B9',
+    Completed: '#28a745',
+    Rescheduled: '#f0ad4e',
+    Cancelled: '#dc3545',
+};
 
-        const calendarElement =
-            document.getElementById('calendar');
-
-
-        const calendar =
-            new FullCalendar.Calendar(
-                calendarElement,
-                {
-
-                    initialView:
-                        'dayGridMonth',
+let calendar;
+let currentEvent = null;
 
 
-                    height: 'auto',
+document.addEventListener('DOMContentLoaded', function () {
+
+    calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+
+        // Always open on the month calendar
+        initialView: 'dayGridMonth',
+
+        // "List" = the next 30 days from today, so upcoming jobs always show
+        views: {
+            listUpcoming: {
+                type: 'list',
+                duration: { days: 30 },
+                buttonText: 'List',
+                noEventsContent: 'No cleanings in the next 30 days',
+            },
+        },
 
 
-                    headerToolbar: {
+        height: 'auto',
 
-                        left:
-                            'prev,next today',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,listUpcoming'
+        },
 
-                        center:
-                            'title',
+        buttonText: { today: 'Today', month: 'Month', week: 'Week', list: 'List' },
 
-                        right:
-                            'dayGridMonth,timeGridWeek,listWeek'
+        events: "{% url 'schedule_events_api' %}",
 
-                    },
+        // Every job is a box with its name; "+ more" when a day is full
+        eventDisplay: 'block',
+        dayMaxEvents: true,
 
+        // A late-evening job stays on its own day
+        nextDayThreshold: '23:59:59',
 
-                    buttonText: {
+        eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
 
-                        today:
-                            'Today',
+        noEventsContent: 'No cleanings scheduled',
 
-                        month:
-                            'Month',
+        editable: true,
+        eventStartEditable: true,
+        eventDurationEditable: false,
 
-                        week:
-                            'Week',
+        eventClick: function (info) {
+            info.jsEvent.preventDefault();
+            showScheduleModal(info.event);
+        },
 
-                        list:
-                            'List'
+        eventDrop: function (info) {
+            rescheduleEvent(info.event, info);
+        },
 
-                    },
+    });
 
+    calendar.render();
 
-                    events:
-                        "{% url 'schedule_events_api' %}",
-
-
-                    editable: true,
-
-
-                    eventStartEditable: true,
-
-
-                    eventDurationEditable: false,
-
-
-                    eventClick:
-                        function(info) {
-
-                            showScheduleModal(
-                                info.event
-                            );
-
-                        },
+});
 
 
-                    eventDrop:
-                        function(info) {
+/* ---------- details popup ---------- */
 
-                            const event =
-                                info.event;
-
-                            rescheduleEvent(
-                                event,
-                                info
-                            );
-
-                        },
-
-                }
-            );
-
-
-        calendar.render();
-
-
-        window.calendar =
-            calendar;
-
-    }
-);
-
-
-
-/* ==========================
-   SHOW MODAL
-   ========================== */
+function setText(id, value) {
+    document.getElementById(id).textContent = value || '-';
+}
 
 function showScheduleModal(event) {
 
-    const props =
-        event.extendedProps;
+    currentEvent = event;
 
+    const p = event.extendedProps;
 
-    document.getElementById(
-        'modalTitle'
-    ).textContent =
-        props.customer_name
-        || event.title;
+    setText('modalTitle', p.customer_name || event.title);
 
+    const when = event.start
+        ? event.start.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+          + (event.allDay ? '' : ' · ' + event.start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }))
+        : '';
 
-    document.getElementById(
-        'modalCustomer'
-    ).textContent =
-        props.customer_name
-        || '-';
+    setText('modalWhen', when);
+    setText('modalPhone', p.phone);
+    setText('modalLocation', p.location);
+    setText('modalAddress', p.address);
+    setText('modalAssigned', p.assigned_to || 'Not assigned');
+    setText('modalNotes', p.notes);
 
+    document.getElementById('modalStatus').value = p.status;
+    document.getElementById('editButton').href = p.edit_url;
 
-    document.getElementById(
-        'modalPhone'
-    ).textContent =
-        props.phone
-        || '-';
+    const mapButton = document.getElementById('mapButton');
+    mapButton.hidden = !p.map_link;
+    mapButton.href = p.map_link || '#';
 
+    document.getElementById('deleteConfirm').classList.add('d-none');
 
-    document.getElementById(
-        'modalLocation'
-    ).textContent =
-        props.location
-        || '-';
-
-
-    document.getElementById(
-        'modalAddress'
-    ).textContent =
-        props.address
-        || '-';
-
-
-    document.getElementById(
-        'modalNotes'
-    ).textContent =
-        props.notes
-        || '-';
-
-
-    const statusSelect =
-        document.getElementById(
-            'modalStatus'
-        );
-
-
-    statusSelect.value =
-        props.status;
-
-
-    statusSelect.dataset.scheduleId =
-        event.id;
-
-
-    document.getElementById(
-        'editButton'
-    ).href =
-        props.edit_url;
-
-
-    const deleteButton =
-        document.getElementById(
-            'deleteButton'
-        );
-
-
-    deleteButton.dataset.scheduleId =
-        event.id;
-
-
-    document.getElementById(
-        'scheduleModal'
-    ).classList.add('show');
-
+    document.getElementById('scheduleModal').classList.add('open');
 }
-
-
-
-/* ==========================
-   CLOSE MODAL
-   ========================== */
 
 function closeModal() {
-
-    document.getElementById(
-        'scheduleModal'
-    ).classList.remove('show');
-
+    document.getElementById('scheduleModal').classList.remove('open');
+    currentEvent = null;
 }
 
+document.getElementById('scheduleModal').addEventListener('click', function (e) {
+    if (e.target === this) closeModal();
+});
 
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeModal();
+});
 
-/* ==========================
-   CHANGE STATUS
-   ========================== */
 
-document.getElementById(
-    'modalStatus'
-).addEventListener(
-    'change',
-    function() {
+/* ---------- change status ---------- */
 
-        const scheduleId =
-            this.dataset.scheduleId;
+document.getElementById('modalStatus').addEventListener('change', function () {
 
-        const status =
-            this.value;
+    if (!currentEvent) return;
 
+    const event = currentEvent;
+    const status = this.value;
 
-        fetch(
-            `/schedule/${scheduleId}/status/`,
-            {
-
-                method: 'POST',
-
-                headers: {
-
-                    'Content-Type':
-                        'application/x-www-form-urlencoded',
-
-                    'X-CSRFToken':
-                        getCookie('csrftoken'),
-
-                },
-
-                body:
-                    `status=${encodeURIComponent(status)}`
-
-            }
-        )
-
-        .then(
-            response =>
-                response.json()
-        )
-
-        .then(
-            data => {
-
-                if (!data.success) {
-
-                    alert(
-                        data.error
-                        || 'Could not update status.'
-                    );
-
-                    return;
-
-                }
-
-
-                const calendar =
-                    window.calendar;
-
-
-                const event =
-                    calendar.getEventById(
-                        scheduleId
-                    );
-
-
-                if (event) {
-
-                    const colors = {
-
-                        Scheduled:
-                            '#3B73B9',
-
-                        Completed:
-                            '#28a745',
-
-                        Rescheduled:
-                            '#f0ad4e',
-
-                        Cancelled:
-                            '#dc3545',
-
-                    };
-
-
-                    event.setProp(
-                        'backgroundColor',
-                        colors[status]
-                    );
-
-
-                    event.setProp(
-                        'borderColor',
-                        colors[status]
-                    );
-
-
-                    event.setExtendedProp(
-                        'status',
-                        status
-                    );
-
-                }
-
-            }
-        )
-
-        .catch(
-            error => {
-
-                console.error(error);
-
-                alert(
-                    'Could not update status.'
-                );
-
-            }
-        );
-
-    }
-);
-
-
-
-/* ==========================
-   DELETE
-   ========================== */
-
-document.getElementById(
-    'deleteButton'
-).addEventListener(
-    'click',
-    function() {
-
-        const scheduleId =
-            this.dataset.scheduleId;
-
-
-        if (
-            !confirm(
-                'Are you sure you want to delete this schedule?'
-            )
-        ) {
-
-            return;
-
-        }
-
-
-        fetch(
-            `/schedule/${scheduleId}/delete/`,
-            {
-
-                method: 'POST',
-
-                headers: {
-
-                    'X-CSRFToken':
-                        getCookie('csrftoken'),
-
-                }
-
-            }
-        )
-
-        .then(
-            response => {
-
-                if (
-                    response.redirected
-                ) {
-
-                    window.location.href =
-                        response.url;
-
-                } else {
-
-                    window.location.reload();
-
-                }
-
-            }
-        )
-
-        .catch(
-            error => {
-
-                console.error(error);
-
-                alert(
-                    'Could not delete schedule.'
-                );
-
-            }
-        );
-
-    }
-);
-
-
-
-/* ==========================
-   DRAG / RESCHEDULE
-   ========================== */
-
-function rescheduleEvent(
-    event,
-    info
-) {
-
-    const date =
-        event.start
-        .toISOString()
-        .split('T')[0];
-
-
-    let time = '';
-
-
-    if (event.start) {
-
-        const hours =
-            String(
-                event.start.getHours()
-            ).padStart(2, '0');
-
-
-        const minutes =
-            String(
-                event.start.getMinutes()
-            ).padStart(2, '0');
-
-
-        time =
-            `${hours}:${minutes}`;
-
-    }
-
-
-    fetch(
-        `/schedule/${event.id}/reschedule/`,
-        {
-
-            method: 'POST',
-
-            headers: {
-
-                'Content-Type':
-                    'application/x-www-form-urlencoded',
-
-                'X-CSRFToken':
-                    getCookie('csrftoken'),
-
-            },
-
-            body:
-                `date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`
-
-        }
-    )
-
-    .then(
-        response =>
-            response.json()
-    )
-
-    .then(
-        data => {
-
+    fetch(`/schedule/${event.id}/status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: `status=${encodeURIComponent(status)}`,
+    })
+        .then(r => r.json())
+        .then(data => {
             if (!data.success) {
-
-                alert(
-                    data.error
-                    || 'Could not reschedule.'
-                );
-
-
-                info.revert();
-
+                alert(data.error || 'Could not update status.');
                 return;
-
             }
+            event.setProp('backgroundColor', STATUS_COLORS[status]);
+            event.setProp('borderColor', STATUS_COLORS[status]);
+            event.setExtendedProp('status', status);
+        })
+        .catch(() => alert('Could not update status. Check your internet connection.'));
+});
 
 
-            event.setExtendedProp(
-                'status',
-                'Rescheduled'
-            );
+/* ---------- delete (confirmed inside the popup) ---------- */
+
+document.getElementById('deleteButton').addEventListener('click', function () {
+    document.getElementById('deleteConfirm').classList.remove('d-none');
+});
+
+document.getElementById('deleteNo').addEventListener('click', function () {
+    document.getElementById('deleteConfirm').classList.add('d-none');
+});
+
+document.getElementById('deleteYes').addEventListener('click', function () {
+
+    if (!currentEvent) return;
+
+    const event = currentEvent;
+
+    fetch(`/schedule/${event.id}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    })
+        .then(() => {
+            event.remove();
+            closeModal();
+        })
+        .catch(() => alert('Could not delete schedule.'));
+});
 
 
-            event.setProp(
-                'backgroundColor',
-                '#f0ad4e'
-            );
+/* ---------- drag to reschedule ---------- */
 
+function localDate(d) {
+    // Uses the phone's own date. (toISOString() is UTC and can shift the day in India.)
+    return d.getFullYear() + '-'
+        + String(d.getMonth() + 1).padStart(2, '0') + '-'
+        + String(d.getDate()).padStart(2, '0');
+}
 
-            event.setProp(
-                'borderColor',
-                '#f0ad4e'
-            );
+function rescheduleEvent(event, info) {
 
-        }
-    )
+    const date = localDate(event.start);
 
-    .catch(
-        error => {
+    const time = event.allDay
+        ? ''
+        : String(event.start.getHours()).padStart(2, '0') + ':'
+          + String(event.start.getMinutes()).padStart(2, '0');
 
-            console.error(error);
-
-            alert(
-                'Could not reschedule.'
-            );
-
-
+    fetch(`/schedule/${event.id}/reschedule/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: `date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`,
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.error || 'Could not reschedule.');
+                info.revert();
+                return;
+            }
+            event.setExtendedProp('status', 'Rescheduled');
+            event.setProp('backgroundColor', STATUS_COLORS.Rescheduled);
+            event.setProp('borderColor', STATUS_COLORS.Rescheduled);
+        })
+        .catch(() => {
+            alert('Could not reschedule. Check your internet connection.');
             info.revert();
-
-        }
-    );
-
+        });
 }
 
 
-
-/* ==========================
-   CSRF COOKIE
-   ========================== */
+/* ---------- CSRF ---------- */
 
 function getCookie(name) {
-
-    let cookieValue = null;
-
-
-    if (
-        document.cookie
-        &&
-        document.cookie !== ''
-    ) {
-
-        const cookies =
-            document.cookie.split(';');
-
-
-        for (
-            let i = 0;
-            i < cookies.length;
-            i++
-        ) {
-
-            const cookie =
-                cookies[i].trim();
-
-
-            if (
-                cookie.substring(
-                    0,
-                    name.length + 1
-                )
-                ===
-                (name + '=')
-            ) {
-
-                cookieValue =
-                    decodeURIComponent(
-                        cookie.substring(
-                            name.length + 1
-                        )
-                    );
-
-                break;
-
-            }
-
-        }
-
-    }
-
-
-    return cookieValue;
-
+    const match = document.cookie
+        .split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith(name + '='));
+    return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
 }
 
-
-
-/* ==========================
-   CLOSE MODAL ON OUTSIDE CLICK
-   ========================== */
-
-document.getElementById(
-    'scheduleModal'
-).addEventListener(
-    'click',
-    function(event) {
-
-        if (
-            event.target === this
-        ) {
-
-            closeModal();
-
-        }
-
-    }
-);
-
 </script>
-
-
-</body>
-
-</html>
+{% endblock %}
