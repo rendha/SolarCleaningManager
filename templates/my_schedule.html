@@ -187,7 +187,6 @@
                 <div id="calLocation" class="text-muted"></div>
                 <div id="calNotes" class="small mt-1"></div>
                 <div class="d-flex flex-wrap gap-2 mt-3">
-                    <a id="calCall" class="btn btn-outline-success btn-sm">📞 Call</a>
                     <a id="calMap" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">🗺️ Map</a>
                     <a id="calRecord" class="btn btn-dark btn-sm ms-auto">✅ Done – Record Cleaning</a>
                 </div>
@@ -304,10 +303,6 @@ document.getElementById('tab-calendar').addEventListener('shown.bs.tab', functio
                 [p.location, p.solar_kw ? p.solar_kw + ' kW' : ''].filter(Boolean).join(' · ');
 
             document.getElementById('calNotes').textContent = p.notes ? '📝 ' + p.notes : '';
-
-            const call = document.getElementById('calCall');
-            call.hidden = !p.phone;
-            call.href = p.phone ? 'tel:' + p.phone : '#';
 
             const map = document.getElementById('calMap');
             map.hidden = !p.map_link;

@@ -52,12 +52,6 @@
 
         <div class="d-flex flex-wrap gap-2 mt-3">
 
-            {% if schedule.phone %}
-                <a href="tel:{{ schedule.phone }}" class="btn btn-outline-success btn-sm">📞 Call</a>
-            {% elif schedule.customer and schedule.customer.phone %}
-                <a href="tel:{{ schedule.customer.phone }}" class="btn btn-outline-success btn-sm">📞 Call</a>
-            {% endif %}
-
             {% if schedule.site and schedule.site.google_map_link %}
                 <a href="{{ schedule.site.google_map_link }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">🗺️ Map</a>
             {% endif %}

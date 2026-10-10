@@ -1130,9 +1130,6 @@ def _schedule_events(schedules, for_owner):
 
         props = {
             'customer_name': customer_name,
-            'phone': schedule.phone or (
-                schedule.customer.phone if schedule.customer else ''
-            ),
             'location': schedule.get_location() or '',
             'address': (
                 schedule.site.address if schedule.site else schedule.address
@@ -1149,6 +1146,9 @@ def _schedule_events(schedules, for_owner):
         }
 
         if for_owner:
+            props['phone'] = schedule.phone or (
+                schedule.customer.phone if schedule.customer else ''
+            )
             props['edit_url'] = f"/schedule/{schedule.id}/edit/"
             props['delete_url'] = f"/schedule/{schedule.id}/delete/"
         else:
