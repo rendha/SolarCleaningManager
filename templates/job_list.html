@@ -89,16 +89,16 @@
     {% endif %}
 
 </td>
-                    <td>Rs{{ job.revenue }}</td>
+                    <td>₹{{ job.revenue }}</td>
                     <td>
-                        Rs{{ job.total_expenses }}
+                        ₹{{ job.total_expenses }}
                         <button class="btn btn-sm btn-link p-0 ms-1" type="button" data-bs-toggle="collapse" data-bs-target="#exp-{{ job.id }}">
                             (View details)
                         </button>
                         <div class="collapse mt-1" id="exp-{{ job.id }}">
                             <ul class="list-unstyled small text-muted mb-0">
                                 {% for exp in job.expenses.all %}
-                                    <li>- {{ exp.expense_name }}: Rs{{ exp.cost }}</li>
+                                    <li>- {{ exp.expense_name }}: ₹{{ exp.cost }}</li>
                                 {% empty %}
                                     <li>No manual expenses</li>
                                 {% endfor %}
@@ -106,7 +106,7 @@
                         </div>
                     </td>
                     <td class="fw-bold {% if job.net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        Rs{{ job.net_profit }}
+                        ₹{{ job.net_profit }}
                     </td>
                 </tr>
                 {% empty %}

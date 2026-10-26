@@ -16,30 +16,30 @@
 </div>
 
 <!-- Metrics Cards -->
-<div class="row text-white mb-4">
+<div class="row mb-4">
     <div class="col-md-3 mb-3">
-        <div class="card bg-primary p-3 shadow-sm">
-            <h5>Total Cleanings</h5>
-            <h3>{{ total_cleanings }}</h3>
-            <small>Paid: {{ paid_count }} | Unpaid: {{ unpaid_count }} | Free: {{ free_count }}</small>
+        <div class="card bg-white border-0 border-start border-4 border-primary p-3 shadow-sm h-100">
+            <div class="text-muted text-uppercase small fw-semibold">Total Cleanings</div>
+            <h3 class="text-primary mb-1">{{ total_cleanings }}</h3>
+            <small class="text-muted">Paid: {{ paid_count }} | Unpaid: {{ unpaid_count }} | Free: {{ free_count }}</small>
         </div>
     </div>
     <div class="col-md-3 mb-3">
-        <div class="card bg-success p-3 shadow-sm">
-            <h5>Total Revenue</h5>
-            <h3>Rs{{ total_revenue|floatformat:2 }}</h3>
+        <div class="card bg-white border-0 border-start border-4 border-success p-3 shadow-sm h-100">
+            <div class="text-muted text-uppercase small fw-semibold">Total Revenue</div>
+            <h3 class="text-success mb-0">₹{{ total_revenue|floatformat:2 }}</h3>
         </div>
     </div>
     <div class="col-md-3 mb-3">
-        <div class="card bg-danger p-3 shadow-sm">
-            <h5>Total Expenses</h5>
-            <h3>Rs{{ total_expenses|floatformat:2 }}</h3>
+        <div class="card bg-white border-0 border-start border-4 border-danger p-3 shadow-sm h-100">
+            <div class="text-muted text-uppercase small fw-semibold">Total Expenses</div>
+            <h3 class="text-danger mb-0">₹{{ total_expenses|floatformat:2 }}</h3>
         </div>
     </div>
     <div class="col-md-3 mb-3">
-        <div class="card {% if total_profit >= 0 %}bg-info{% else %}bg-warning{% endif %} p-3 shadow-sm text-dark">
-            <h5>Net Profit / Loss</h5>
-            <h3>Rs{{ total_profit|floatformat:2 }}</h3>
+        <div class="card bg-white border-0 border-start border-4 {% if total_profit >= 0 %}border-success{% else %}border-danger{% endif %} p-3 shadow-sm h-100">
+            <div class="text-muted text-uppercase small fw-semibold">Net Profit / Loss</div>
+            <h3 class="{% if total_profit >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">₹{{ total_profit|floatformat:2 }}</h3>
         </div>
     </div>
 </div>
@@ -47,7 +47,7 @@
 <!-- Outstanding Amount Alert -->
 {% if outstanding_amount > 0 %}
 <div class="alert alert-warning shadow-sm" role="alert">
-    <strong>⚠️ Outstanding Balance:</strong> You have <strong>${{ outstanding_amount|floatformat:2 }}</strong> in unpaid invoices from completed paid cleanings.
+    <strong>⚠️ Outstanding Balance:</strong> You have <strong>₹{{ outstanding_amount|floatformat:2 }}</strong> in unpaid invoices from completed paid cleanings.
 </div>
 {% endif %}
 
