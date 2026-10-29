@@ -45,7 +45,7 @@
             <div class="card shadow-sm p-3">
 
                 <small class="text-muted">
-                    Total Cleanings
+                    Total Jobs
                 </small>
 
                 <h3>
@@ -262,7 +262,7 @@
         <div class="card-header">
 
             <h5 class="mb-0">
-                Cleaning History
+                Job History
             </h5>
 
         </div>
@@ -277,7 +277,7 @@
                         <th>Date</th>
                         <th>Site</th>
                         <th>Capacity</th>
-                        <th>Cleaning #</th>
+                        <th>Service</th>
                         <th>Type</th>
                         <th>Payment</th>
                         <th>Revenue</th>
@@ -298,15 +298,19 @@
                         </td>
 
                         <td>
-                            {{ job.site_location }}
+                            {{ job.site.location|default:job.site.address }}
                         </td>
 
                         <td>
-                            {{ job.system_size_kw }}
+                            {% if job.site.solar_kw %}{{ job.site.solar_kw }} kW{% else %}-{% endif %}
                         </td>
 
                         <td>
-                            #{{ job.cleaning_number }}
+                            {% if job.service_name|lower == 'cleaning' %}
+                                <span class="badge text-bg-secondary">Cleaning #{{ job.cleaning_number }}</span>
+                            {% else %}
+                                <span class="badge text-bg-warning">{{ job.service_name }}</span>
+                            {% endif %}
                         </td>
 
                         <td>
@@ -400,7 +404,7 @@
                             colspan="9"
                             class="text-center py-4"
                         >
-                            No cleaning jobs recorded yet.
+                            No jobs recorded yet.
                         </td>
 
                     </tr>

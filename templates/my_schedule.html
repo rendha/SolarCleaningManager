@@ -183,12 +183,13 @@
                     <h5 id="calName" class="fw-bold mb-1"></h5>
                     <button type="button" class="btn-close" aria-label="Close" onclick="document.getElementById('calDetail').hidden = true"></button>
                 </div>
+                <div id="calService" class="mb-1"></div>
                 <div id="calWhen" class="fw-semibold mb-1"></div>
                 <div id="calLocation" class="text-muted"></div>
                 <div id="calNotes" class="small mt-1"></div>
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <a id="calMap" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">🗺️ Map</a>
-                    <a id="calRecord" class="btn btn-dark btn-sm ms-auto">✅ Done – Record Cleaning</a>
+                    <a id="calRecord" class="btn btn-dark btn-sm ms-auto">✅ Done – Record Job</a>
                 </div>
             </div>
         </div>
@@ -257,7 +258,7 @@ document.getElementById('tab-calendar').addEventListener('shown.bs.tab', functio
                 type: 'list',
                 duration: { days: 30 },
                 buttonText: 'List',
-                noEventsContent: 'No cleanings in the next 30 days',
+                noEventsContent: 'No jobs in the next 30 days',
             },
         },
 
@@ -294,6 +295,14 @@ document.getElementById('tab-calendar').addEventListener('shown.bs.tab', functio
 
             document.getElementById('calName').textContent = p.customer_name || e.title;
 
+            const serviceBox = document.getElementById('calService');
+            serviceBox.innerHTML = '';
+            const tag = document.createElement('span');
+            const isCleaning = (p.service || 'Cleaning').toLowerCase() === 'cleaning';
+            tag.className = 'badge ' + (isCleaning ? 'text-bg-secondary' : 'text-bg-warning');
+            tag.textContent = (p.service || 'Cleaning');
+            serviceBox.appendChild(tag);
+
             document.getElementById('calWhen').textContent =
                 e.start.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
                 + (e.allDay ? '' : ' · ' + e.start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }))
@@ -311,6 +320,7 @@ document.getElementById('tab-calendar').addEventListener('shown.bs.tab', functio
             const record = document.getElementById('calRecord');
             record.hidden = !p.record_url || p.status === 'Completed';
             record.href = p.record_url || '#';
+            record.textContent = '✅ Done – Record ' + (p.service || 'Cleaning');
 
             const detail = document.getElementById('calDetail');
             detail.hidden = false;

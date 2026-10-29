@@ -154,18 +154,52 @@
 
 {% block content %}
 
+<!-- Switch between the two calendars -->
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if kind != 'services' %}active{% endif %}" href="{% url 'schedule' %}?type=cleaning">
+            Cleaning
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if kind == 'services' %}active{% endif %}" href="{% url 'schedule' %}?type=services">
+            Services
+        </a>
+    </li>
+</ul>
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
 
-    <h2 class="fw-bold mb-0">Cleaning Schedule</h2>
+    <h2 class="fw-bold mb-0">
+        {% if kind == 'services' %}Service Schedule{% else %}Cleaning Schedule{% endif %}
+    </h2>
 
-    <a href="{% url 'add_schedule' %}" class="btn btn-primary">
-        + Add Schedule
-    </a>
+    {% if kind == 'services' %}
+        <a href="{% url 'add_schedule' %}?service=" class="btn btn-primary">
+            + Add Service Visit
+        </a>
+    {% else %}
+        <a href="{% url 'add_schedule' %}?service=Cleaning" class="btn btn-primary">
+            + Add Cleaning
+        </a>
+    {% endif %}
 
 </div>
 
 
 <div class="calendar-card">
+
+    {% if kind == 'services' and services %}
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <label for="serviceFilter" class="fw-semibold mb-0">Show:</label>
+            <select id="serviceFilter" class="form-select form-select-sm" style="width:auto; max-width:100%;">
+                <option value="">All services</option>
+                {% for s in services %}
+                    <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    {% endif %}
 
     <div id="calendarLoading" class="text-muted small mb-2" hidden>Loading jobs…</div>
     <div id="calendarError" class="alert alert-danger py-2" hidden>
@@ -192,7 +226,10 @@
 
         <button type="button" class="sched-close" onclick="closeModal()" aria-label="Close">&times;</button>
 
-        <h4 id="modalTitle" class="mb-3 pe-4">Cleaning Schedule</h4>
+        <h4 id="modalTitle" class="mb-3 pe-4">Schedule</h4>
+
+        <div class="detail-label">Service</div>
+        <div id="modalService" class="detail-value"></div>
 
         <div class="detail-label">When</div>
         <div id="modalWhen" class="detail-value"></div>
@@ -253,6 +290,8 @@ const STATUS_COLORS = {
     Cancelled: '#dc3545',
 };
 
+const CALENDAR_KIND = "{% if kind == 'services' %}services{% else %}cleaning{% endif %}";
+
 let calendar;
 let currentEvent = null;
 
@@ -270,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 type: 'list',
                 duration: { days: 30 },
                 buttonText: 'List',
-                noEventsContent: 'No cleanings in the next 30 days',
+                noEventsContent: CALENDAR_KIND === 'services' ? 'No service visits in the next 30 days' : 'No cleanings in the next 30 days',
             },
         },
 
@@ -287,6 +326,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         events: {
             url: "{% url 'schedule_events_api' %}",
+            extraParams: function () {
+                const filter = document.getElementById('serviceFilter');
+                return {
+                    type: CALENDAR_KIND,                 // 'cleaning' or 'services'
+                    service: filter ? filter.value : '',
+                };
+            },
             failure: function () {
                 showCalendarError();
             },
@@ -307,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
 
-        noEventsContent: 'No cleanings scheduled',
+        noEventsContent: CALENDAR_KIND === 'services' ? 'No service visits scheduled' : 'No cleanings scheduled',
 
         editable: true,
         eventStartEditable: true,
@@ -325,6 +371,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     calendar.render();
+
+    // Reload jobs when the "Show:" filter changes
+    const serviceFilter = document.getElementById('serviceFilter');
+    if (serviceFilter) {
+        serviceFilter.addEventListener('change', function () {
+            calendar.refetchEvents();
+        });
+    }
 
 });
 
@@ -348,6 +402,7 @@ function showScheduleModal(event) {
           + (event.allDay ? '' : ' · ' + event.start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }))
         : '';
 
+    setText('modalService', p.service || 'Cleaning');
     setText('modalWhen', when);
     setText('modalPhone', p.phone);
     setText('modalLocation', p.location);

@@ -3,7 +3,7 @@
 <div class="row mb-4">
     <div class="col-md-8">
         <h2>Business Dashboard</h2>
-        <p class="text-muted">Track your solar panel cleaning metrics and profit performance.</p>
+        <p class="text-muted">Track your cleaning and service jobs, income and profit.</p>
     </div>
     <!-- Monthly Filter Form -->
     <div class="col-md-4">
@@ -19,7 +19,7 @@
 <div class="row mb-4">
     <div class="col-md-3 mb-3">
         <div class="card bg-white border-0 border-start border-4 border-primary p-3 shadow-sm h-100">
-            <div class="text-muted text-uppercase small fw-semibold">Total Cleanings</div>
+            <div class="text-muted text-uppercase small fw-semibold">Total Jobs</div>
             <h3 class="text-primary mb-1">{{ total_cleanings }}</h3>
             <small class="text-muted">Paid: {{ paid_count }} | Unpaid: {{ unpaid_count }} | Free: {{ free_count }}</small>
         </div>
@@ -44,14 +44,68 @@
     </div>
 </div>
 
+<!-- Cleaning vs Services -->
+<div class="row g-3 mb-4">
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Cleaning</h5>
+                    <a href="{% url 'schedule' %}?type=cleaning" class="small">Calendar →</a>
+                </div>
+                <div class="row text-center g-2">
+                    <div class="col-3"><div class="small text-muted">Jobs</div><div class="fs-5 fw-bold">{{ cleaning_summary.count }}</div></div>
+                    <div class="col-3"><div class="small text-muted">Revenue</div><div class="fs-5 fw-bold text-success">₹{{ cleaning_summary.revenue|floatformat:0 }}</div></div>
+                    <div class="col-3"><div class="small text-muted">Expenses</div><div class="fs-5 fw-bold text-danger">₹{{ cleaning_summary.expenses|floatformat:0 }}</div></div>
+                    <div class="col-3"><div class="small text-muted">Profit</div><div class="fs-5 fw-bold {% if cleaning_summary.profit < 0 %}text-danger{% else %}text-success{% endif %}">₹{{ cleaning_summary.profit|floatformat:0 }}</div></div>
+                </div>
+                {% if cleaning_summary.unpaid %}
+                    <div class="small text-muted mt-3">Unpaid: <strong class="text-danger">₹{{ cleaning_summary.unpaid|floatformat:0 }}</strong></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Services</h5>
+                    <a href="{% url 'schedule' %}?type=services" class="small">Calendar →</a>
+                </div>
+                {% if services_summary.count %}
+                    <div class="row text-center g-2">
+                        <div class="col-3"><div class="small text-muted">Jobs</div><div class="fs-5 fw-bold">{{ services_summary.count }}</div></div>
+                        <div class="col-3"><div class="small text-muted">Revenue</div><div class="fs-5 fw-bold text-success">₹{{ services_summary.revenue|floatformat:0 }}</div></div>
+                        <div class="col-3"><div class="small text-muted">Expenses</div><div class="fs-5 fw-bold text-danger">₹{{ services_summary.expenses|floatformat:0 }}</div></div>
+                        <div class="col-3"><div class="small text-muted">Profit</div><div class="fs-5 fw-bold {% if services_summary.profit < 0 %}text-danger{% else %}text-success{% endif %}">₹{{ services_summary.profit|floatformat:0 }}</div></div>
+                    </div>
+                    {% if services_summary.unpaid %}
+                        <div class="small text-muted mt-3">Unpaid: <strong class="text-danger">₹{{ services_summary.unpaid|floatformat:0 }}</strong></div>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted mb-0">No service jobs yet{% if selected_month %} this month{% endif %}. Record one from <a href="{% url 'add_job' %}">Add Job</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
 <!-- Outstanding Amount Alert -->
-{% if outstanding_amount > 0 %}
-<div class="alert alert-warning shadow-sm" role="alert">
-    <strong>⚠️ Outstanding Balance:</strong> You have <strong>₹{{ outstanding_amount|floatformat:2 }}</strong> in unpaid invoices from completed paid cleanings.
+
+{% if needs_amount %}
+<div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span><strong>{{ needs_amount }}</strong> service job{{ needs_amount|pluralize }} recorded without an amount.</span>
+    <a href="{% url 'job_list' %}?needs=amount" class="btn btn-sm btn-dark">Add amounts →</a>
 </div>
 {% endif %}
 
-<div class="text-center mt-4">
-    <a href="{% url 'add_job' %}" class="btn btn-dark btn-lg">➕ Record New Cleaning Job</a>
+{% if outstanding_amount > 0 %}
+<div class="alert alert-warning shadow-sm" role="alert">
+    <strong>Outstanding Balance:</strong> You have <strong>₹{{ outstanding_amount|floatformat:2 }}</strong> in unpaid invoices from completed jobs.
 </div>
+{% endif %}
+
 {% endblock %}

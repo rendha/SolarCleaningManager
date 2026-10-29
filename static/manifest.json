@@ -1,11 +1,11 @@
 {
-    "name": "SolarClean Manager",
-    "short_name": "SolarClean",
-    "description": "Solar panel cleaning business management system",
+    "name": "SolarCare Manager",
+    "short_name": "SolarCare",
+    "description": "Solar cleaning and service management",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#f5f7fa",
-    "theme_color": "#3B73B9",
+    "background_color": "#F1F5F9",
+    "theme_color": "#FFFFFF",
     "orientation": "portrait-primary",
     "icons": [
         {

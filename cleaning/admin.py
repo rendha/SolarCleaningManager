@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, Site, RateCard, CleaningJob, JobExpense,CanvassingLocation
+from .models import Customer, Site, RateCard, CleaningJob, JobExpense,CanvassingLocation, ServiceType
 
 
 @admin.register(Customer)
@@ -57,3 +57,9 @@ class CanvassingLocationAdmin(admin.ModelAdmin):
     list_filter = (
         'status',
     )
+
+
+@admin.register(ServiceType)
+class ServiceTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'created_at')
+    search_fields = ('name',)

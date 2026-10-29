@@ -133,7 +133,6 @@
 </style>
 
 <div class="schedule-form-container">
-    
 
     <h1>
         {{ title }}
@@ -152,6 +151,30 @@
             </div>
 
         {% endif %}
+
+
+        <!-- =========================================
+             SERVICE
+             ========================================= -->
+
+        <div class="form-group">
+
+            <label for="{{ form.service.id_for_label }}">
+                Service
+            </label>
+
+            {{ form.service }}
+
+            <datalist id="service-options">
+                {% for name in form.service_options %}<option value="{{ name }}">{% endfor %}
+            </datalist>
+
+            <div class="help">
+                Pick from the list (Cleaning, Inverter issue…) or type a new service.
+                New ones are saved for next time.
+            </div>
+
+        </div>
 
 
         <!-- =========================================
@@ -303,7 +326,7 @@
         <div class="form-group">
 
             <label for="id_scheduled_date">
-                Cleaning Date
+                Date
             </label>
 
             {{ form.scheduled_date }}
@@ -318,7 +341,7 @@
         <div class="form-group">
 
             <label for="id_scheduled_time">
-                Cleaning Time
+                Time
             </label>
 
             {{ form.scheduled_time }}
@@ -975,10 +998,4 @@ console.log(
 
 </script>
 
-{% endblock %}
-
-
-</body>
-
-</html>
-
+{% endblock %}

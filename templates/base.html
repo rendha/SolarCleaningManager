@@ -10,7 +10,7 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Solar Cleaning Business Manager</title>
+    <title>SolarCare Manager</title>
 
     <!-- Bootstrap 5 -->
     <link
@@ -20,7 +20,7 @@
 
     <link rel="manifest" href="{% static 'manifest.json' %}">
 
-    <meta name="theme-color" content="#212529">
+    <meta name="theme-color" content="#FFFFFF">
 
     <meta name="mobile-web-app-capable" content="yes">
 
@@ -219,6 +219,12 @@
 
 </style>
 
+<!-- Sky & Slate theme (colours, font) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/theme.css' %}">
+
 {% block extra_head %}{% endblock %}
 
 </head>
@@ -233,7 +239,7 @@
     <!-- NAVIGATION -->
     <!-- ============================= -->
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-xl navbar-dark bg-dark">
 
         <div class="container">
 
@@ -241,7 +247,7 @@
                 class="navbar-brand fw-bold"
                 href="{% url 'home' %}"
             >
-                ☀️ SolarClean Manager
+                SolarCare Manager
             </a>
 
 
@@ -262,6 +268,7 @@
                 id="navbarNav"
             >
 
+                {% with page=request.resolver_match.url_name kind=request.GET.type %}
                 <ul class="navbar-nav ms-auto">
 
 
@@ -270,43 +277,49 @@
                         <!-- ===== OWNER MENU ===== -->
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard' %}">
+                            <a class="nav-link{% if page == 'dashboard' %} active-page{% endif %}" href="{% url 'dashboard' %}">
                                 Dashboard
                             </a>
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'schedule' %}">
-                                Schedule
+                            <a class="nav-link{% if page == 'schedule' and kind != 'services' or page == 'add_schedule' or page == 'edit_schedule' %} active-page{% endif %}" href="{% url 'schedule' %}?type=cleaning">
+                                Cleaning Schedule
                             </a>
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'add_job' %}">
-                                Add Cleaning
+                            <a class="nav-link{% if page == 'schedule' and kind == 'services' %} active-page{% endif %}" href="{% url 'schedule' %}?type=services">
+                                Service Schedule
                             </a>
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'job_list' %}">
-                                All Cleanings
+                            <a class="nav-link{% if page == 'add_job' %} active-page{% endif %}" href="{% url 'add_job' %}">
+                                Add Job
                             </a>
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'monthly_reports' %}">
+                            <a class="nav-link{% if page == 'job_list' or page == 'edit_job' %} active-page{% endif %}" href="{% url 'job_list' %}">
+                                All Jobs
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link{% if page == 'monthly_reports' or page == 'monthly_report_detail' %} active-page{% endif %}" href="{% url 'monthly_reports' %}">
                                 Monthly Reports
                             </a>
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'customer_list' %}">
+                            <a class="nav-link{% if page == 'customer_list' or page == 'customer_detail' %} active-page{% endif %}" href="{% url 'customer_list' %}">
                                 Customers
                             </a>
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'canvassing' %}">
+                            <a class="nav-link{% if page == 'canvassing' %} active-page{% endif %}" href="{% url 'canvassing' %}">
                                 Location Search
                             </a>
                         </li>
@@ -316,14 +329,14 @@
                         <!-- ===== EMPLOYEE MENU ===== -->
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'my_schedule' %}">
+                            <a class="nav-link{% if page == 'my_schedule' %} active-page{% endif %}" href="{% url 'my_schedule' %}">
                                 My Jobs
                             </a>
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'employee_add_job' %}">
-                                Record Cleaning
+                            <a class="nav-link{% if page == 'employee_add_job' %} active-page{% endif %}" href="{% url 'employee_add_job' %}">
+                                Record Job
                             </a>
                         </li>
 
@@ -344,8 +357,9 @@
                             <button
                                 type="submit"
                                 class="nav-logout-button"
+                                title="Logged in as {{ user.get_full_name|default:user.username }}"
                             >
-                                Logout ({{ user.get_full_name|default:user.username }})
+                                Logout
                             </button>
 
                         </form>
@@ -354,6 +368,7 @@
 
 
                 </ul>
+                {% endwith %}
 
             </div>
 
@@ -438,7 +453,7 @@ if ("serviceWorker" in navigator) {
             .then(function(registration) {
 
                 console.log(
-                    "SolarClean Manager service worker registered:",
+                    "SolarCare Manager service worker registered:",
                     registration.scope
                 );
 

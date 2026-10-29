@@ -16,7 +16,7 @@
             </h1>
 
             <p class="text-muted">
-                Complete cleaning and expense details
+                All jobs, services and expenses this month
             </p>
 
         </div>
@@ -47,7 +47,7 @@
                 <div class="card-body">
 
                     <div class="text-muted">
-                        Cleanings
+                        Jobs
                     </div>
 
                     <h3>
@@ -138,7 +138,7 @@
 
             <div class="alert alert-success">
 
-                🟢 Paid Cleanings:
+                🟢 Paid Jobs:
 
                 <strong>
                     {{ paid_count }}
@@ -153,7 +153,7 @@
 
             <div class="alert alert-danger">
 
-                🔴 Unpaid Cleanings:
+                🔴 Unpaid Jobs:
 
                 <strong>
                     {{ unpaid_count }}
@@ -182,12 +182,62 @@
 
 
 
+
+    <!-- ========================================= -->
+    <!-- BY SERVICE -->
+    <!-- ========================================= -->
+
+    <h4 class="mb-3">
+        By Service
+    </h4>
+
+    {% if services %}
+
+        <div class="table-responsive mb-5">
+
+            <table class="table table-hover align-middle bg-white shadow-sm">
+
+                <thead class="table-light">
+                    <tr>
+                        <th>Service</th>
+                        <th class="text-end">Jobs</th>
+                        <th class="text-end">Revenue</th>
+                        <th class="text-end">Expenses</th>
+                        <th class="text-end">Profit</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for s in services %}
+                        <tr>
+                            <td>
+                                {% if s.is_cleaning %}
+                                    <span class="badge text-bg-secondary">Cleaning</span>
+                                {% else %}
+                                    <span class="badge text-bg-warning">{{ s.name }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ s.count }}</td>
+                            <td class="text-end text-success">₹{{ s.revenue|floatformat:2 }}</td>
+                            <td class="text-end text-danger">₹{{ s.expenses|floatformat:2 }}</td>
+                            <td class="text-end fw-bold {% if s.profit < 0 %}text-danger{% else %}text-primary{% endif %}">₹{{ s.profit|floatformat:2 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+
+    {% endif %}
+
+
     <!-- ========================================= -->
     <!-- CLEANING JOBS -->
     <!-- ========================================= -->
 
     <h3 class="mb-3">
-        Cleaning Jobs
+        Jobs
     </h3>
 
 
@@ -202,6 +252,8 @@
                     <tr>
 
                         <th>Date</th>
+
+                        <th>Service</th>
 
                         <th>Customer</th>
 
@@ -232,6 +284,14 @@
 
                             <td>
                                 {{ job.date|date:"d M Y" }}
+                            </td>
+
+                            <td>
+                                {% if job.service_name|lower == 'cleaning' %}
+                                    <span class="badge text-bg-secondary">Cleaning</span>
+                                {% else %}
+                                    <span class="badge text-bg-warning">{{ job.service_name }}</span>
+                                {% endif %}
                             </td>
 
 
@@ -286,7 +346,7 @@
 
 
                             <td>
-                                {{ job.cleaning_number }}
+                                {% if job.service_name|lower == 'cleaning' %}{{ job.cleaning_number }}{% else %}-{% endif %}
                             </td>
 
 
@@ -345,7 +405,7 @@
 
         <div class="alert alert-info">
 
-            No cleaning jobs found for this month.
+            No jobs found for this month.
 
         </div>
 

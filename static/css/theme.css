@@ -1,0 +1,492 @@
+/* =====================================================================
+   SolarClean Manager - Sky & Slate theme
+   Loaded after Bootstrap in base.html. Change the colours here only.
+
+   Layout idea: cool light grey-blue page, white navbar and cards, soft tinted
+   summary cards, one sky-blue accent for actions, sun-yellow for small
+   highlights; status colours keep their meaning.
+   ===================================================================== */
+
+:root {
+    /* Palette */
+    --sc-bg:          #F1F5F9;   /* light grey-blue page */
+    --sc-surface:     #FFFFFF;   /* cards, tables, forms */
+    --sc-surface-2:   #F8FAFC;   /* table headers, light panels */
+    --sc-ink:         #1E293B;   /* main text */
+    --sc-muted:       #64748B;   /* secondary text */
+    --sc-border:      #E2E8F0;   /* lines and card edges */
+    --sc-nav:         #1E293B;   /* navbar, dark buttons, dark table heads */
+    --sc-nav-ink:     #E2E8F0;
+
+    --sc-accent:      #0369A1;   /* sky blue - main buttons, links */
+    --sc-accent-dark: #075985;
+    --sc-accent-soft: #E0F2FE;   /* hover / selected backgrounds */
+    --sc-sun:         #F59E0B;   /* sun yellow - small highlights */
+
+    --sc-success:     #15803D;
+    --sc-danger:      #B91C1C;
+    --sc-warning:     #D97706;
+    --sc-info:        #0E7490;
+
+    --sc-radius:      12px;
+    --sc-shadow:      0 1px 2px rgba(15, 23, 42, .05), 0 4px 14px rgba(15, 23, 42, .06);
+
+    /* Bootstrap hooks */
+    --bs-body-bg: var(--sc-bg);
+    --bs-body-color: var(--sc-ink);
+    --bs-secondary-color: var(--sc-muted);
+    --bs-border-color: var(--sc-border);
+    --bs-body-font-family: "Plus Jakarta Sans", "Segoe UI", Roboto, Arial, sans-serif;
+    --bs-link-color: var(--sc-accent);
+    --bs-link-color-rgb: 3, 105, 161;
+    --bs-link-hover-color: var(--sc-accent-dark);
+    --bs-link-hover-color-rgb: 7, 89, 133;
+
+    --bs-primary: var(--sc-accent);
+    --bs-primary-rgb: 3, 105, 161;
+    --bs-success: var(--sc-success);
+    --bs-success-rgb: 21, 128, 61;
+    --bs-danger: var(--sc-danger);
+    --bs-danger-rgb: 185, 28, 28;
+    --bs-warning: var(--sc-warning);
+    --bs-warning-rgb: 217, 119, 6;
+    --bs-info: var(--sc-info);
+    --bs-info-rgb: 59, 115, 133;
+    --bs-dark: var(--sc-nav);
+    --bs-dark-rgb: 15, 23, 42;
+    --bs-light: var(--sc-surface-2);
+    --bs-light-rgb: 248, 250, 252;
+    --bs-secondary-rgb: 100, 116, 139;
+
+    --bs-primary-text-emphasis: var(--sc-accent-dark);
+    --bs-primary-bg-subtle: var(--sc-accent-soft);
+    --bs-primary-border-subtle: #BAE6FD;
+    --bs-warning-bg-subtle: #FFFBEB;
+    --bs-warning-border-subtle: #FDE68A;
+    --bs-warning-text-emphasis: #78350F;
+    --bs-danger-bg-subtle: #FEE2E2;
+    --bs-danger-border-subtle: #FECACA;
+    --bs-danger-text-emphasis: #7F1D1D;
+    --bs-success-bg-subtle: #DCFCE7;
+    --bs-success-border-subtle: #BBF7D0;
+    --bs-success-text-emphasis: #14532D;
+    --bs-info-bg-subtle: #CFFAFE;
+    --bs-info-border-subtle: #A5F3FC;
+    --bs-info-text-emphasis: #164E63;
+
+    --bs-border-radius: 8px;
+    --bs-border-radius-lg: var(--sc-radius);
+    --bs-focus-ring-color: rgba(3, 105, 161, .25);
+
+    /* FullCalendar */
+    --fc-border-color: var(--sc-border);
+    --fc-button-bg-color: var(--sc-surface);
+    --fc-button-border-color: var(--sc-border);
+    --fc-button-text-color: var(--sc-ink);
+    --fc-button-hover-bg-color: var(--sc-accent-soft);
+    --fc-button-hover-border-color: #BAE6FD;
+    --fc-button-active-bg-color: var(--sc-accent);
+    --fc-button-active-border-color: var(--sc-accent);
+    --fc-today-bg-color: #FFFBEB;
+    --fc-page-bg-color: var(--sc-surface);
+    --fc-neutral-bg-color: var(--sc-surface-2);
+    --fc-list-event-hover-bg-color: var(--sc-accent-soft);
+}
+
+
+/* ---------- Page & type ---------- */
+
+body,
+body.bg-light {
+    background: var(--sc-bg) !important;
+    color: var(--sc-ink);
+    font-family: var(--bs-body-font-family);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--sc-ink);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+.text-muted { color: var(--sc-muted) !important; }
+
+.text-uppercase.small,
+.small.text-uppercase {
+    letter-spacing: 0.06em;
+}
+
+h1 + .text-muted, h2 + .text-muted { margin-top: -0.25rem; }
+
+/* Money and counts line up neatly */
+h3, td, .badge { font-variant-numeric: tabular-nums; }
+
+
+/* ---------- Navbar ---------- */
+
+.navbar.bg-dark {
+    background: var(--sc-nav) !important;
+    border-bottom: 3px solid var(--sc-sun);
+}
+
+.navbar-dark .navbar-brand {
+    color: #0F172A;
+    letter-spacing: -0.01em;
+}
+
+.navbar-dark .nav-link,
+.nav-logout-button {
+    color: rgba(15, 23, 42, .72) !important;
+    font-weight: 500;
+}
+
+.navbar-dark .nav-link:hover,
+.nav-logout-button:hover {
+    color: #FFFFFF !important;
+}
+
+
+/* ---------- Back button ---------- */
+
+.global-back-button {
+    background: transparent;
+    color: var(--sc-muted);
+    border: 1px solid var(--sc-border);
+    font-weight: 600;
+}
+
+.global-back-button:hover {
+    background: var(--sc-surface);
+    color: var(--sc-ink);
+    border-color: var(--sc-muted);
+}
+
+
+/* ---------- Cards & panels ---------- */
+
+.card {
+    background: var(--sc-surface);
+    border-color: var(--sc-border);
+    border-radius: var(--sc-radius);
+}
+
+.card.shadow-sm,
+.shadow-sm {
+    box-shadow: var(--sc-shadow) !important;
+}
+
+.card-header {
+    background: var(--sc-surface-2);
+    border-bottom-color: var(--sc-border);
+}
+
+.card-header.bg-dark {
+    background: var(--sc-nav) !important;
+}
+
+/* Dashboard metric cards: keep the coloured edge, soften the rest */
+.card.border-start.border-4 {
+    border-left-width: 4px !important;
+}
+
+
+/* ---------- Buttons ---------- */
+
+.btn { font-weight: 600; }
+
+.btn-primary {
+    --bs-btn-bg: var(--sc-accent);
+    --bs-btn-border-color: var(--sc-accent);
+    --bs-btn-hover-bg: var(--sc-accent-dark);
+    --bs-btn-hover-border-color: var(--sc-accent-dark);
+    --bs-btn-active-bg: var(--sc-accent-dark);
+    --bs-btn-active-border-color: var(--sc-accent-dark);
+    --bs-btn-disabled-bg: var(--sc-accent);
+    --bs-btn-disabled-border-color: var(--sc-accent);
+}
+
+.btn-dark {
+    --bs-btn-bg: var(--sc-nav);
+    --bs-btn-border-color: var(--sc-nav);
+    --bs-btn-hover-bg: #334155;
+    --bs-btn-hover-border-color: #334155;
+    --bs-btn-active-bg: #334155;
+}
+
+.btn-danger {
+    --bs-btn-bg: var(--sc-danger);
+    --bs-btn-border-color: var(--sc-danger);
+    --bs-btn-hover-bg: #991B1B;
+    --bs-btn-hover-border-color: #991B1B;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--sc-accent);
+    --bs-btn-border-color: #7DD3FC;
+    --bs-btn-hover-bg: var(--sc-accent);
+    --bs-btn-hover-border-color: var(--sc-accent);
+    --bs-btn-active-bg: var(--sc-accent-dark);
+}
+
+.btn-outline-secondary,
+.btn-outline-dark {
+    --bs-btn-color: var(--sc-ink);
+    --bs-btn-border-color: var(--sc-border);
+    --bs-btn-hover-bg: var(--sc-surface-2);
+    --bs-btn-hover-color: var(--sc-ink);
+    --bs-btn-hover-border-color: var(--sc-muted);
+}
+
+.btn-outline-success {
+    --bs-btn-color: var(--sc-success);
+    --bs-btn-border-color: #86EFAC;
+    --bs-btn-hover-bg: var(--sc-success);
+    --bs-btn-hover-border-color: var(--sc-success);
+}
+
+.btn-warning {
+    --bs-btn-bg: var(--sc-warning);
+    --bs-btn-border-color: var(--sc-warning);
+    --bs-btn-color: #1E293B;
+    --bs-btn-hover-bg: #B45309;
+    --bs-btn-hover-border-color: #B45309;
+}
+
+
+/* ---------- Forms ---------- */
+
+.form-control,
+.form-select {
+    border-color: var(--sc-border);
+    background-color: var(--sc-surface);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #7DD3FC;
+    box-shadow: 0 0 0 .2rem rgba(3, 105, 161, .18);
+}
+
+.form-check-input:checked {
+    background-color: var(--sc-accent);
+    border-color: var(--sc-accent);
+}
+
+.form-check-input:focus {
+    border-color: #7DD3FC;
+    box-shadow: 0 0 0 .2rem rgba(3, 105, 161, .18);
+}
+
+.form-label { font-weight: 600; }
+
+:focus-visible {
+    outline: 2px solid var(--sc-accent);
+    outline-offset: 2px;
+}
+
+
+/* ---------- Tables ---------- */
+
+.table {
+    --bs-table-bg: var(--sc-surface);
+    --bs-table-hover-bg: var(--sc-accent-soft);
+    --bs-table-border-color: var(--sc-border);
+}
+
+.table-dark {
+    --bs-table-bg: var(--sc-nav);
+    --bs-table-color: var(--sc-nav-ink);
+    --bs-table-border-color: #334155;
+}
+
+.table-light {
+    --bs-table-bg: var(--sc-surface-2);
+    --bs-table-color: var(--sc-muted);
+}
+
+.table thead th {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-weight: 700;
+}
+
+
+/* ---------- Tabs, pills, badges, alerts ---------- */
+
+.nav-pills .nav-link {
+    color: var(--sc-muted);
+    font-weight: 600;
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+    background: var(--sc-accent);
+    color: #FFFFFF;
+}
+
+.badge { font-weight: 600; letter-spacing: .01em; }
+
+.text-bg-warning { color: #92400E !important; }
+
+.alert { border-radius: 10px; }
+
+.list-group-item { border-color: var(--sc-border); }
+
+
+/* ---------- Pages with their own styles ---------- */
+
+/* Add / edit schedule form */
+.schedule-form-container {
+    border: 1px solid var(--sc-border);
+    box-shadow: var(--sc-shadow) !important;
+}
+
+.schedule-form-container .btn-save {
+    background: var(--sc-accent);
+    color: #FFFFFF;
+}
+
+.schedule-form-container .btn-save:hover {
+    background: var(--sc-accent-dark);
+}
+
+.schedule-form-container .btn-cancel {
+    background: var(--sc-surface-2);
+    color: var(--sc-ink);
+    border: 1px solid var(--sc-border);
+}
+
+.schedule-form-container input:focus,
+.schedule-form-container select:focus,
+.schedule-form-container textarea:focus {
+    outline: none;
+    border-color: #7DD3FC;
+    box-shadow: 0 0 0 .2rem rgba(3, 105, 161, .18);
+}
+
+/* Calendar card */
+.calendar-card {
+    border: 1px solid var(--sc-border);
+    box-shadow: var(--sc-shadow) !important;
+}
+
+.fc .fc-toolbar-title { color: var(--sc-ink); }
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    color: #FFFFFF;
+}
+
+.fc .fc-col-header-cell {
+    background: var(--sc-surface-2);
+}
+
+/* Customer search dropdown */
+.customer-search-result:hover,
+.customer-search-result:focus {
+    background: var(--sc-accent-soft);
+}
+
+
+/* ---------- Motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}
+
+
+/* ---------- Navbar fits on one line ---------- */
+
+.navbar-nav .nav-link,
+.nav-logout-button {
+    white-space: nowrap;
+    font-size: .9rem;
+}
+
+@media (min-width: 1200px) {
+    .navbar-expand-xl .navbar-nav .nav-link,
+    .navbar-expand-xl .nav-logout-button {
+        padding-left: .45rem;
+        padding-right: .45rem;
+    }
+}
+
+/* Collapsed (☰) menu: comfortable tap targets */
+@media (max-width: 1199.98px) {
+    .navbar-collapse .nav-link,
+    .navbar-collapse .nav-logout-button {
+        padding-top: .6rem;
+        padding-bottom: .6rem;
+        border-top: 1px solid rgba(15, 23, 42, .08);
+    }
+}
+
+
+/* ===================== Light layout: white navbar, tinted cards, rounded ===================== */
+
+.navbar.bg-dark{background:#fff!important;border-bottom:1px solid var(--sc-border);box-shadow:0 2px 12px rgba(80,50,30,.05)}
+.navbar-dark .navbar-brand{color:var(--sc-ink)!important;font-weight:800}
+.navbar-dark .nav-link,.nav-logout-button{color:#6E5F54!important;font-weight:600;border-radius:999px}
+.navbar-dark .nav-link:hover{color:var(--sc-accent)!important;background:var(--sc-accent-soft)}
+.navbar-dark .nav-link.active-page{color:var(--sc-accent)!important;background:var(--sc-accent-soft)}
+.btn{border-radius:10px}
+.btn-dark{--bs-btn-bg:#3A2B23;--bs-btn-border-color:#3A2B23;--bs-btn-hover-bg:#4E3C31;--bs-btn-hover-border-color:#4E3C31}
+.btn-lg{border-radius:14px;padding:.75rem 1.5rem}
+h2{font-weight:800;letter-spacing:-.02em}
+/* metric cards: soft warm tints instead of coloured edges */
+.card.border-start.border-4{border:0!important;box-shadow:none!important;padding:1.25rem 1.4rem!important}
+.card.border-start.border-primary{background:#FDEEE3!important}
+.card.border-start.border-success{background:#E9F4EC!important}
+.card.border-start.border-danger{background:#FBE9E4!important}
+.card.border-start .text-uppercase{color:#8A7B6F!important;font-size:.72rem}
+.card.border-start h3{font-size:1.9rem;font-weight:800;margin-top:.35rem}
+/* tables */
+.card.shadow-sm.p-3:has(table){padding:0!important;overflow:hidden}
+.table-dark{--bs-table-bg:#F7F0E8;--bs-table-color:#8A7B6F;--bs-table-border-color:#EFE5DA}
+.table>:not(caption)>*>*{padding:.9rem 1rem}
+.alert-warning{background:#FFF6E5;border-color:#F6DFB2;color:#6B4A12}
+.badge{border-radius:999px;padding:.4em .75em}
+.nav-pills .nav-link{border-radius:999px}
+.global-back-button{border-radius:999px}
+
+
+/* ===================== Sky & slate colours ===================== */
+/* Sky & slate - built around the #F1F5F9 background */
+:root{
+  --sc-bg:#F1F5F9; --sc-surface:#FFFFFF; --sc-surface-2:#F8FAFC; --sc-ink:#1E293B; --sc-muted:#64748B;
+  --sc-border:#E2E8F0; --sc-nav:#FFFFFF; --sc-nav-ink:#1E293B;
+  --sc-accent:#0369A1; --sc-accent-dark:#075985; --sc-accent-soft:#E0F2FE; --sc-sun:#F59E0B;
+  --sc-success:#15803D; --sc-danger:#B91C1C; --sc-warning:#D97706; --sc-info:#0E7490;
+  --bs-primary-rgb:3,105,161; --bs-success-rgb:21,128,61; --bs-danger-rgb:185,28,28; --bs-warning-rgb:217,119,6;
+  --bs-dark:#1E293B; --bs-dark-rgb:30,41,59; --bs-secondary-rgb:100,116,139;
+  --bs-link-color:#0369A1; --bs-link-color-rgb:3,105,161; --bs-link-hover-color:#075985;
+  --sc-shadow:0 1px 2px rgba(15,23,42,.04),0 6px 20px rgba(15,23,42,.06);
+}
+body,body.bg-light{background:#F1F5F9!important}
+.navbar-dark .navbar-brand{color:#0F172A!important}
+.navbar-dark .nav-link,.nav-logout-button{color:#475569!important}
+.navbar-dark .nav-link:hover,.navbar-dark .nav-link.active-page{color:#0369A1!important;background:#E0F2FE}
+.navbar.bg-dark{border-bottom:1px solid #E2E8F0;box-shadow:0 2px 12px rgba(15,23,42,.05)}
+.btn-dark{--bs-btn-bg:#1E293B;--bs-btn-border-color:#1E293B;--bs-btn-hover-bg:#334155;--bs-btn-hover-border-color:#334155}
+.btn-primary{--bs-btn-bg:#0369A1;--bs-btn-border-color:#0369A1;--bs-btn-hover-bg:#075985;--bs-btn-hover-border-color:#075985;--bs-btn-active-bg:#075985}
+.btn-outline-primary{--bs-btn-color:#0369A1;--bs-btn-border-color:#7DD3FC;--bs-btn-hover-bg:#0369A1;--bs-btn-hover-border-color:#0369A1}
+.nav-pills .nav-link{color:#64748B}
+.nav-pills .nav-link.active{background:#0369A1;color:#fff}
+.card.border-start.border-primary{background:#E0F2FE!important}
+.card.border-start.border-success{background:#DCFCE7!important}
+.card.border-start.border-danger{background:#FEE2E2!important}
+.card.border-start .text-uppercase{color:#64748B!important}
+.text-primary{color:#0369A1!important}.text-success{color:#15803D!important}.text-danger{color:#B91C1C!important}
+.table-dark{--bs-table-bg:#F8FAFC;--bs-table-color:#64748B;--bs-table-border-color:#E2E8F0}
+.table{--bs-table-hover-bg:#F0F9FF}
+.alert-warning{background:#FFFBEB;border-color:#FDE68A;color:#78350F}
+.badge.bg-success{background:#15803D!important}.badge.bg-danger{background:#B91C1C!important}
+.text-bg-secondary{background:#E2E8F0!important;color:#334155!important}
+.text-bg-warning{background:#FEF3C7!important;color:#92400E!important}
+.text-bg-danger{background:#B91C1C!important;color:#fff!important}
+.form-control:focus,.form-select:focus{border-color:#7DD3FC;box-shadow:0 0 0 .2rem rgba(3,105,161,.15)}
+.global-back-button{color:#64748B;border-color:#E2E8F0}
+.global-back-button:hover{background:#fff;color:#1E293B}

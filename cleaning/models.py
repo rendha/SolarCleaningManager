@@ -9,6 +9,56 @@ class RateCard(models.Model):
         return f"{self.system_size_kw.upper()} - {self.rate}"
 
 
+class ServiceType(models.Model):
+    """
+    A kind of work: Cleaning, Inverter issue, Earthing check…
+    New names are created automatically the first time someone types them.
+    """
+
+    name = models.CharField(max_length=100, unique=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def is_cleaning(self):
+        return self.name.strip().lower() == 'cleaning'
+
+    @classmethod
+    def from_text(cls, text):
+        """'inverter  ISSUE' finds the existing 'Inverter issue', or creates it."""
+        name = ' '.join((text or '').split())
+        if not name:
+            return None
+        existing = cls.objects.filter(name__iexact=name).first()
+        if existing:
+            return existing
+        return cls.objects.create(name=name[:1].upper() + name[1:])
+
+    @classmethod
+    def cleaning(cls):
+        return cls.from_text('Cleaning')
+
+    @classmethod
+    def suggestions(cls):
+        """Names for the Service box, most used first; Cleaning always included."""
+        from django.db.models import Count
+        names = list(
+            cls.objects
+            .annotate(uses=Count('jobs', distinct=True) + Count('schedules', distinct=True))
+            .order_by('-uses', 'name')
+            .values_list('name', flat=True)
+        )
+        if not any(n.lower() == 'cleaning' for n in names):
+            names.insert(0, 'Cleaning')
+        return names
+
+
 class Customer(models.Model):
     name = models.CharField(max_length=150)
     contact_person = models.CharField(max_length=150, blank=True) 
@@ -82,6 +132,14 @@ class CleaningJob(models.Model):
         related_name='cleaning_jobs'
     )
 
+    service_type = models.ForeignKey(
+        ServiceType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='jobs'
+    )
+
     cleaning_number = models.PositiveIntegerField(default=1)
 
     is_free = models.BooleanField(default=False)
@@ -130,19 +188,31 @@ class CleaningJob(models.Model):
         null=True, blank=True, related_name='done_jobs'
     )
 
+    @property
+    def service_name(self):
+        # Jobs saved before services existed count as Cleaning
+        return self.service_type.name if self.service_type_id else 'Cleaning'
+
     def save(self, *args, **kwargs):
         import re
         from decimal import Decimal
 
-        # FREE CLEANING = ₹0
+        if self.service_type_id is None:
+            self.service_type = ServiceType.cleaning()
+
+        # FREE = ₹0
         if self.is_free:
             self.revenue = Decimal('0.00')
 
-        # MANUAL OVERRIDE
+        # AMOUNT TYPED BY THE OWNER
         elif self.manual_rate_override is not None:
             self.revenue = self.manual_rate_override
 
-        # AUTOMATIC RATE CARD
+        # OTHER SERVICES: no rate card, so ₹0 until the owner enters the amount
+        elif not self.service_type.is_cleaning:
+            self.revenue = Decimal('0.00')
+
+        # CLEANING: AUTOMATIC RATE CARD
         else:
             site_kw = str(self.site.solar_kw).strip()
 
@@ -271,6 +341,14 @@ class CleaningSchedule(models.Model):
         related_name='cleaning_schedules'
     )
 
+    service_type = models.ForeignKey(
+        ServiceType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='schedules'
+    )
+
     # These allow a schedule to exist even without a Site.
     location = models.CharField(
         max_length=250,
@@ -311,6 +389,10 @@ class CleaningSchedule(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='assigned_schedules'
     )
+
+    @property
+    def service_name(self):
+        return self.service_type.name if self.service_type_id else 'Cleaning'
 
     def get_customer_name(self):
         """

@@ -6,7 +6,7 @@
 
     <div class="col-12 col-md-8 col-lg-6">
 
-        <h3 class="fw-bold mb-3">Record Cleaning</h3>
+        <h3 class="fw-bold mb-3">Record Job</h3>
 
 
         {% if schedule %}
@@ -54,15 +54,23 @@
 
                 <div class="card-body">
 
+                    <datalist id="service-options">
+    {% for name in form.service_options %}<option value="{{ name }}">{% endfor %}
+</datalist>
+
                     {% for field in form %}
 
-                        <div class="mb-3">
+                        <div class="mb-3 {% if field.name == 'cleaning_number' %}cleaning-only{% endif %}">
 
                             <label for="{{ field.id_for_label }}" class="form-label">
                                 {{ field.label }}
                             </label>
 
                             {{ field }}
+
+                            {% if field.name == 'service' %}
+                                <small class="text-muted">Pick from the list, or type what you did.</small>
+                            {% endif %}
 
                             {% for error in field.errors %}
                                 <div class="text-danger small">{{ error }}</div>
@@ -169,7 +177,7 @@
 
 
             <button type="submit" class="btn btn-dark btn-lg w-100">
-                Save Cleaning
+                Save Job
             </button>
 
         </form>
@@ -184,6 +192,38 @@
 {% block extra_js %}
 
 <script>
+
+/* =====================================================
+   CLEANING-ONLY FIELDS
+   "Cleaning Number" and "First Cleaning Free" only
+   show when the service is Cleaning.
+   ===================================================== */
+
+(function () {
+
+    const serviceBox = document.getElementById('id_service');
+    if (!serviceBox) return;
+
+    const freeBox = document.getElementById('id_is_free');
+
+    function update() {
+        const isCleaning = serviceBox.value.trim().toLowerCase() === 'cleaning'
+                           || serviceBox.value.trim() === '';
+
+        document.querySelectorAll('.cleaning-only').forEach(function (el) {
+            el.hidden = !isCleaning;
+        });
+
+        // A hidden "free" tick must not stay ticked
+        if (!isCleaning && freeBox) freeBox.checked = false;
+    }
+
+    serviceBox.addEventListener('input', update);
+    serviceBox.addEventListener('change', update);
+    update();
+
+})();
+
 
 document.getElementById("add-expense").addEventListener("click", function () {
 

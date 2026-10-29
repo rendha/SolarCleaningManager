@@ -9,7 +9,7 @@
         <div class="card shadow-sm p-4">
 
             <h3 class="mb-4">
-                Record Solar Panel Cleaning
+                {% if form.instance.pk %}Edit Job{% else %}Record a Job{% endif %}
             </h3>
 
             <form method="post">
@@ -30,6 +30,30 @@
                         {{ formset.non_form_errors }}
                     </div>
                 {% endif %}
+
+
+                <!-- SERVICE -->
+
+                <div class="mb-4">
+
+                    <label for="{{ form.service.id_for_label }}" class="form-label fw-bold">
+                        Service
+                    </label>
+
+                    {{ form.service }}
+                    <datalist id="service-options">
+    {% for name in form.service_options %}<option value="{{ name }}">{% endfor %}
+</datalist>
+
+                    <small class="text-muted">
+                        Pick one from the list, or type a new service. New ones are saved for next time.
+                    </small>
+
+                    {% for error in form.service.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+
+                </div>
 
 
                 <!-- NEW / ONE-TIME CUSTOMER SWITCH (only when adding) -->
@@ -127,7 +151,7 @@
 
                 <div class="row">
 
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-4 mb-3 cleaning-only">
 
                         <label class="form-label">
                             Cleaning Number
@@ -166,9 +190,9 @@
                 </div>
 
 
-                <!-- FREE CLEANING -->
+                <!-- FREE CLEANING (cleaning only) -->
 
-                <div class="mb-4">
+                <div class="mb-4 cleaning-only">
 
                     <div class="form-check">
 
@@ -193,13 +217,14 @@
                 <div class="mb-4">
 
                     <label class="form-label">
-                        Manual Rate Override
+                        Amount Charged (₹)
                     </label>
 
                     {{ form.manual_rate_override }}
 
                     <small class="text-muted">
-                        Leave empty to use the automatic rate card.
+                        For cleaning, leave empty to use the rate card.
+                        For other services, enter the amount.
                     </small>
 
                     {% for error in form.manual_rate_override.errors %}
@@ -215,11 +240,11 @@
                 <!-- EXPENSES -->
 
                 <h5 class="mb-2">
-                    Cleaning Expenses
+                    Expenses
                 </h5>
 
                 <p class="text-muted">
-                    Enter any expenses manually.
+                    Fuel, water, parts, etc. Add as many as you need, or leave empty if none.
                 </p>
 
 
@@ -256,10 +281,12 @@
 
                             </div>
 
-                            <div class="col-md-1">
+                            <div class="col-md-1 d-flex align-items-center">
 
                                 {% if exp_form.instance.pk %}
-                                    {{ exp_form.DELETE }}
+                                    <label class="small text-danger d-flex align-items-center gap-1 mb-0" title="Tick to delete this expense when you save">
+                                        {{ exp_form.DELETE }} Remove
+                                    </label>
                                 {% endif %}
 
                             </div>
@@ -271,11 +298,48 @@
                 </div>
 
 
+                <!-- New rows are copied from here -->
+                <template id="empty-expense-row">
+
+                    <div class="row expense-row mb-2">
+
+                        {% for hidden in formset.empty_form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
+                        <div class="col-md-7">
+                            {{ formset.empty_form.expense_name }}
+                        </div>
+
+                        <div class="col-md-4">
+                            {{ formset.empty_form.cost }}
+                        </div>
+
+                        <div class="col-md-1 d-flex align-items-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-expense" aria-label="Remove this expense">✕</button>
+                        </div>
+
+                    </div>
+
+                </template>
+
+
+                <button type="button" id="add-expense" class="btn btn-outline-secondary btn-sm mt-1">
+                    + Add another expense
+                </button>
+
+
+                <!-- Running total of expenses -->
+                <div class="text-end small text-muted mt-2">
+                    Total expenses: <strong id="expense-total">₹0</strong>
+                </div>
+
+
                 <button
                     type="submit"
                     class="btn btn-danger w-100 mt-4 py-2"
                 >
-                    Save Cleaning Job & Calculate Profit
+                    Save Job & Calculate Profit
                 </button>
 
             </form>
@@ -292,6 +356,91 @@
 {% block extra_js %}
 
 <script>
+
+/* =====================================================
+   EXPENSES: add / remove rows, running total
+   ===================================================== */
+
+(function () {
+
+    const list = document.getElementById('expense-formset');
+    const addBtn = document.getElementById('add-expense');
+    const template = document.getElementById('empty-expense-row');
+    const totalInput = document.querySelector('input[name$="-TOTAL_FORMS"]');
+    const totalBox = document.getElementById('expense-total');
+
+    if (!list || !addBtn || !template || !totalInput) return;
+
+    function updateTotal() {
+        let sum = 0;
+        list.querySelectorAll('.expense-row').forEach(function (row) {
+            const del = row.querySelector('input[name$="-DELETE"]');
+            if (del && del.checked) return;          // being removed
+            const cost = row.querySelector('input[name$="-cost"]');
+            sum += parseFloat(cost && cost.value) || 0;
+        });
+        totalBox.textContent = '₹' + sum.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    }
+
+    addBtn.addEventListener('click', function () {
+        const index = parseInt(totalInput.value, 10);
+        const html = template.innerHTML.replace(/__prefix__/g, index);
+        list.insertAdjacentHTML('beforeend', html);
+        totalInput.value = index + 1;
+
+        // put the cursor in the new expense name
+        const rows = list.querySelectorAll('.expense-row');
+        const name = rows[rows.length - 1].querySelector('input[name$="-expense_name"]');
+        if (name) name.focus();
+    });
+
+    // ✕ on a new row just clears it (Django skips empty rows when saving)
+    list.addEventListener('click', function (e) {
+        if (!e.target.classList.contains('remove-expense')) return;
+        const row = e.target.closest('.expense-row');
+        row.querySelectorAll('input[type="text"], input[type="number"]').forEach(function (i) { i.value = ''; });
+        row.hidden = true;
+        updateTotal();
+    });
+
+    list.addEventListener('input', updateTotal);
+    list.addEventListener('change', updateTotal);
+    updateTotal();
+
+})();
+
+
+/* =====================================================
+   CLEANING-ONLY FIELDS
+   "Cleaning Number" and "First Cleaning Free" only
+   show when the service is Cleaning.
+   ===================================================== */
+
+(function () {
+
+    const serviceBox = document.getElementById('id_service');
+    if (!serviceBox) return;
+
+    const freeBox = document.getElementById('id_is_free');
+
+    function update() {
+        const isCleaning = serviceBox.value.trim().toLowerCase() === 'cleaning'
+                           || serviceBox.value.trim() === '';
+
+        document.querySelectorAll('.cleaning-only').forEach(function (el) {
+            el.hidden = !isCleaning;
+        });
+
+        // A hidden "free" tick must not stay ticked
+        if (!isCleaning && freeBox) freeBox.checked = false;
+    }
+
+    serviceBox.addEventListener('input', update);
+    serviceBox.addEventListener('change', update);
+    update();
+
+})();
+
 
 /* =====================================================
    NEW / ONE-TIME CUSTOMER SWITCH

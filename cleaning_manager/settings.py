@@ -33,7 +33,9 @@ SECRET_KEY = os.environ.get(
     "django-insecure-local-development-key"
 )
 
-DEBUG = True
+# Live site (Render sets RENDER=true): DEBUG is OFF so errors never show code or settings.
+# On your computer: DEBUG is ON so you see full error pages while testing.
+DEBUG = os.environ.get("RENDER") is None
 
 ALLOWED_HOSTS = [
     ".onrender.com",

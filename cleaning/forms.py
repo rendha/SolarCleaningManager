@@ -1,12 +1,74 @@
-
 from django import forms
 from django.contrib.auth import get_user_model
 from django.forms import inlineformset_factory
- 
-from .models import CleaningJob, JobExpense, Customer, Site, CleaningSchedule
- 
- 
-class CleaningJobForm(forms.ModelForm):
+
+from .models import (
+    CleaningJob, JobExpense, Customer, Site, CleaningSchedule, ServiceType,
+)
+
+
+# =====================================================================
+# SERVICE BOX (shared by every form)
+#   Shows services used before as suggestions (Cleaning, Inverter issue…).
+#   Typing a new one saves it under that name for next time.
+# =====================================================================
+
+class ServiceFieldMixin:
+
+    service_field_name = 'service'
+
+    def setup_service_field(self, required=True):
+
+        current = ''
+        instance = getattr(self, 'instance', None)
+        if instance is not None and instance.pk and instance.service_type_id:
+            current = instance.service_type.name
+
+        self.fields[self.service_field_name] = forms.CharField(
+            label='Service',
+            max_length=100,
+            required=required,
+            initial=current or 'Cleaning',
+            widget=forms.TextInput(attrs={
+                'class': 'form-control',
+                'list': 'service-options',      # <datalist> in the template
+                'placeholder': 'Pick or type: Cleaning, Inverter issue…',
+                'autocomplete': 'off',
+            }),
+        )
+
+        # Suggestions shown under the box, most used first
+        self.service_options = ServiceType.suggestions()
+
+        # Show the Service box first
+        order = [self.service_field_name] + [
+            name for name in self.fields if name != self.service_field_name
+        ]
+        self.order_fields(order)
+
+    def clean_service(self):
+        name = ' '.join((self.cleaned_data.get('service') or '').split())
+        if self.fields['service'].required and not name:
+            raise forms.ValidationError('Please choose or type a service.')
+        return name
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        obj.service_type = (
+            ServiceType.from_text(self.cleaned_data.get('service'))
+            or ServiceType.cleaning()
+        )
+        if commit:
+            obj.save()
+            self.save_m2m()
+        return obj
+
+
+# =====================================================================
+# OWNER: ADD / EDIT A JOB
+# =====================================================================
+
+class CleaningJobForm(ServiceFieldMixin, forms.ModelForm):
 
     # ---------- New / one-time customer fields (not saved on the job itself) ----------
 
@@ -64,7 +126,10 @@ class CleaningJobForm(forms.ModelForm):
         ]
 
         widgets = {
-            'customer': forms.Select(attrs={'class': 'form-control', 'data-customer-search': 'true'}),
+            'customer': forms.Select(attrs={
+                'class': 'form-control',
+                'data-customer-search': 'true',
+            }),
             'site': forms.Select(attrs={'class': 'form-control'}),
             'cleaning_number': forms.NumberInput(attrs={'class': 'form-control'}),
             'payment_status': forms.Select(attrs={'class': 'form-control'}),
@@ -75,6 +140,10 @@ class CleaningJobForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.setup_service_field()
+
+        self.fields['manual_rate_override'].label = 'Amount charged'
 
         # Not required here - clean() decides based on the switch
         self.fields['customer'].required = False
@@ -95,6 +164,9 @@ class CleaningJobForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
+        service = (cleaned_data.get('service') or '').lower()
+        is_cleaning = service in ('', 'cleaning')
+
         if cleaned_data.get('new_customer'):
 
             if not cleaned_data.get('new_customer_name'):
@@ -103,13 +175,14 @@ class CleaningJobForm(forms.ModelForm):
             if not cleaned_data.get('new_location') and not cleaned_data.get('new_address'):
                 self.add_error('new_location', 'Please enter a location or address.')
 
-            # Need kW (for rate card) unless it's free or the rate is typed manually
+            # Cleaning price comes from the rate card, which needs the kW
             if (
-                not cleaned_data.get('new_solar_kw')
+                is_cleaning
+                and not cleaned_data.get('new_solar_kw')
                 and cleaned_data.get('manual_rate_override') is None
                 and not cleaned_data.get('is_free')
             ):
-                self.add_error('new_solar_kw', 'Enter the kW, or fill in Manual Rate Override.')
+                self.add_error('new_solar_kw', 'Enter the kW, or fill in Amount charged.')
 
         else:
             customer = cleaned_data.get('customer')
@@ -122,8 +195,20 @@ class CleaningJobForm(forms.ModelForm):
             elif site.customer_id != customer.id:
                 self.add_error(None, 'The selected site does not belong to this customer.')
 
+        # "First Cleaning Free" only applies to cleaning
+        if not is_cleaning:
+            cleaned_data['is_free'] = False
+
+        # Other services have no rate card - the amount must be typed
+        if not is_cleaning and cleaned_data.get('manual_rate_override') is None:
+            self.add_error(
+                'manual_rate_override',
+                'Enter the amount charged for this service.'
+            )
+
         return cleaned_data
- 
+
+
 JobExpenseFormSet = inlineformset_factory(
     CleaningJob,
     JobExpense,
@@ -146,14 +231,18 @@ JobExpenseFormSet = inlineformset_factory(
         ),
     },
 )
- 
- 
-class CleaningScheduleForm(forms.ModelForm):
- 
+
+
+# =====================================================================
+# OWNER: SCHEDULE
+# =====================================================================
+
+class CleaningScheduleForm(ServiceFieldMixin, forms.ModelForm):
+
     class Meta:
- 
+
         model = CleaningSchedule
- 
+
         fields = [
             'customer',
             'customer_name',
@@ -168,17 +257,17 @@ class CleaningScheduleForm(forms.ModelForm):
             'status',
             'notes',
         ]
- 
+
         widgets = {
- 
+
             'customer': forms.Select(
                 attrs={
                     'class': 'form-control',
                     'id': 'id_customer',
-                    'data-customer-search': 'true,'
+                    'data-customer-search': 'true',
                 }
             ),
- 
+
             'customer_name': forms.TextInput(
                 attrs={
                     'class': 'form-control',
@@ -186,68 +275,68 @@ class CleaningScheduleForm(forms.ModelForm):
                     'id': 'id_customer_name',
                 }
             ),
- 
+
             'phone': forms.TextInput(
                 attrs={
                     'class': 'form-control',
                     'placeholder': 'Phone number',
                 }
             ),
- 
+
             'solar_kw': forms.TextInput(
                 attrs={
                     'class': 'form-control',
                     'placeholder': 'e.g. 3, 5, 7.2, 10',
                 }
             ),
- 
+
             'site': forms.Select(
                 attrs={
                     'class': 'form-control',
                     'id': 'id_site',
                 }
             ),
- 
+
             'location': forms.TextInput(
                 attrs={
                     'class': 'form-control',
                     'placeholder': 'Location',
                 }
             ),
- 
+
             'address': forms.TextInput(
                 attrs={
                     'class': 'form-control',
                     'placeholder': 'Full address',
                 }
             ),
- 
+
             'scheduled_date': forms.DateInput(
                 attrs={
                     'class': 'form-control',
                     'type': 'date',
                 }
             ),
- 
+
             'scheduled_time': forms.TimeInput(
                 attrs={
                     'class': 'form-control',
                     'type': 'time',
                 }
             ),
- 
+
             'assigned_to': forms.Select(
                 attrs={
                     'class': 'form-control',
                 }
             ),
- 
+
             'status': forms.Select(
                 attrs={
                     'class': 'form-control',
                 }
             ),
- 
+
             'notes': forms.Textarea(
                 attrs={
                     'class': 'form-control',
@@ -256,11 +345,13 @@ class CleaningScheduleForm(forms.ModelForm):
                 }
             ),
         }
- 
+
     def __init__(self, *args, **kwargs):
- 
+
         super().__init__(*args, **kwargs)
- 
+
+        self.setup_service_field()
+
         self.fields['customer'].required = False
         self.fields['site'].required = False
         self.fields['customer_name'].required = False
@@ -269,7 +360,7 @@ class CleaningScheduleForm(forms.ModelForm):
         self.fields['address'].required = False
         self.fields['scheduled_time'].required = False
         self.fields['notes'].required = False
- 
+
         # Employee dropdown: only active, non-owner users
         self.fields['assigned_to'].required = False
         self.fields['assigned_to'].label = 'Assign to employee'
@@ -281,7 +372,7 @@ class CleaningScheduleForm(forms.ModelForm):
         self.fields['assigned_to'].label_from_instance = (
             lambda user: user.get_full_name() or user.username
         )
- 
+
         # Initially show all sites.
         self.fields['site'].queryset = (
             self.fields['site']
@@ -292,101 +383,107 @@ class CleaningScheduleForm(forms.ModelForm):
                 'location'
             )
         )
- 
+
     def clean(self):
- 
+
         cleaned_data = super().clean()
- 
+
         customer = cleaned_data.get('customer')
         customer_name = cleaned_data.get('customer_name')
         site = cleaned_data.get('site')
- 
+
         # Existing customer
         if customer:
- 
+
             # If no site selected, allow manual location.
             if not site:
- 
+
                 location = cleaned_data.get('location')
                 address = cleaned_data.get('address')
- 
+
                 if not location and not address:
- 
+
                     raise forms.ValidationError(
                         'Please select a site or enter a location/address.'
                     )
- 
+
         # New/non-customer
         else:
- 
+
             if not customer_name:
- 
+
                 raise forms.ValidationError(
                     'Please enter the customer name.'
                 )
- 
+
             location = cleaned_data.get('location')
             address = cleaned_data.get('address')
- 
+
             if not location and not address:
- 
+
                 raise forms.ValidationError(
                     'Please enter a location or address.'
                 )
- 
+
         return cleaned_data
- 
- 
-class EmployeeJobForm(forms.ModelForm):
+
+
+# =====================================================================
+# EMPLOYEE: RECORD A JOB (no price fields)
+# =====================================================================
+
+class EmployeeJobForm(ServiceFieldMixin, forms.ModelForm):
     """
-    Cleaning form for employees.
+    Job form for employees.
     No price, free/paid or payment status fields.
     Customer and site dropdowns only show customers
     from schedules assigned to this employee.
     """
- 
+
     class Meta:
         model = CleaningJob
- 
+
         fields = [
             'customer',
             'site',
             'date',
             'cleaning_number',
         ]
- 
+
         widgets = {
             'customer': forms.Select(
                 attrs={'class': 'form-control'}
             ),
- 
+
             'site': forms.Select(
                 attrs={'class': 'form-control'}
             ),
- 
+
             'date': forms.DateInput(
                 attrs={
                     'type': 'date',
                     'class': 'form-control'
                 }
             ),
- 
+
             'cleaning_number': forms.NumberInput(
                 attrs={'class': 'form-control'}
             ),
         }
- 
+
     def __init__(self, *args, user=None, **kwargs):
- 
+
         super().__init__(*args, **kwargs)
- 
+
+        self.setup_service_field()
+
         self.fields['customer'].queryset = (
             Customer.objects
             .filter(cleaning_schedules__assigned_to=user)
             .distinct()
             .order_by('name')
         )
- 
+
         self.fields['site'].queryset = (
             Site.objects
             .filter(cleaning_schedules__assigned_to=user)
@@ -394,25 +491,25 @@ class EmployeeJobForm(forms.ModelForm):
             .distinct()
             .order_by('customer__name', 'location')
         )
- 
+
         self.fields['site'].label_from_instance = (
             lambda site:
             f"{site.customer.name} - "
             f"{site.location} - "
             f"{site.solar_kw} kW"
         )
- 
+
     def clean(self):
- 
+
         cleaned_data = super().clean()
- 
+
         customer = cleaned_data.get('customer')
         site = cleaned_data.get('site')
- 
+
         if customer and site and site.customer_id != customer.id:
- 
+
             raise forms.ValidationError(
                 'The selected site does not belong to this customer.'
             )
- 
+
         return cleaned_data

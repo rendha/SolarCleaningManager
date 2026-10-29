@@ -26,3 +26,8 @@ Thumbs.db
 Desktop.ini
 cleaning_data.json
 db_backup_before_postgres.sqlite3
+
+# Customer data exports and backups - never upload these
+cleaning_live.json
+*.sqlite3
+main

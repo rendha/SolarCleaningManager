@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.db.models import Sum, Count, Q
 from datetime import datetime, timedelta
-from .models import Customer,Site,CleaningJob, JobExpense,CanvassingLocation,CleaningSchedule
+from .models import Customer,Site,CleaningJob, JobExpense,CanvassingLocation,CleaningSchedule, ServiceType
 from .forms import CleaningJobForm, JobExpenseFormSet,CleaningScheduleForm,EmployeeJobForm
 from django.http import JsonResponse
 import re
@@ -35,7 +35,38 @@ def dashboard_view(request):
     
     outstanding_amount = jobs.filter(is_free=False, payment_status='Unpaid').aggregate(Sum('revenue'))['revenue__sum'] or 0.00
 
+    # Service jobs recorded without a price (e.g. by an employee) - owner must add the amount
+    needs_amount = (
+        CleaningJob.objects
+        .filter(is_free=False, revenue=0, manual_rate_override__isnull=True)
+        .exclude(Q(service_type__isnull=True) | Q(service_type__name__iexact='cleaning'))
+        .count()
+    )
+
+    # Cleaning vs other services (same month filter as the totals above)
+    cleaning_q = Q(service_type__isnull=True) | Q(service_type__name__iexact='cleaning')
+
+    def _summary(qs):
+        revenue = float(qs.aggregate(Sum('revenue'))['revenue__sum'] or 0)
+        expenses = float(qs.aggregate(Sum('total_expenses'))['total_expenses__sum'] or 0)
+        return {
+            'count': qs.count(),
+            'revenue': revenue,
+            'expenses': expenses,
+            'profit': revenue - expenses,
+            'unpaid': float(
+                qs.filter(is_free=False, payment_status='Unpaid')
+                .aggregate(Sum('revenue'))['revenue__sum'] or 0
+            ),
+        }
+
+    cleaning_summary = _summary(jobs.filter(cleaning_q))
+    services_summary = _summary(jobs.exclude(cleaning_q))
+
     context = {
+        'cleaning_summary': cleaning_summary,
+        'services_summary': services_summary,
+        'needs_amount': needs_amount,
         'total_cleanings': total_cleanings,
         'paid_count': paid_count,
         'unpaid_count': unpaid_count,
@@ -96,11 +127,11 @@ def add_job_view(request):
                     job.net_profit = float(job.revenue or 0) - job.total_expenses
                     job.save()
 
-                messages.success(request, f"Cleaning saved successfully! Job #{job.id}")
+                messages.success(request, f"{job.service_name} saved successfully! Job #{job.id}")
                 return redirect('job_list')
 
             except Exception as e:
-                messages.error(request, f"Could not save cleaning: {e}")
+                messages.error(request, f"Could not save the job: {e}")
 
         else:
             messages.error(request, "Please fix the errors in the form.")
@@ -116,16 +147,25 @@ def add_job_view(request):
 def job_list_view(request):
 
     query = request.GET.get('q', '').strip()
+    needs_amount = request.GET.get('needs') == 'amount'
 
     jobs = CleaningJob.objects.select_related(
         'customer',
-        'site'
+        'site',
+        'service_type'
     ).prefetch_related(
         'expenses'
     ).all().order_by('-date')
 
+    if needs_amount:
+        jobs = (
+            jobs.filter(is_free=False, revenue=0, manual_rate_override__isnull=True)
+            .exclude(Q(service_type__isnull=True) | Q(service_type__name__iexact='cleaning'))
+        )
+
     if query:
         jobs = jobs.filter(
+            Q(service_type__name__icontains=query) |
             Q(customer__name__icontains=query) |
             Q(customer__contact_person__icontains=query) |
             Q(customer__phone__icontains=query) |
@@ -141,6 +181,7 @@ def job_list_view(request):
         {
             'jobs': jobs,
             'query': query,
+            'needs_amount': needs_amount,
         }
     )
 
@@ -206,15 +247,45 @@ def edit_job_view(request, pk):
 
 @owner_required
 def schedule_view(request):
-    upcoming_jobs = CleaningJob.objects.filter(job_status='Scheduled').order_by('date')
-    return render(request,'schedule.html',{'upcomming_jobs': upcoming_jobs})   
+    # Two calendars on one page: ?type=cleaning (default) or ?type=services
+    kind = 'services' if request.GET.get('type') == 'services' else 'cleaning'
+
+    services = (
+        ServiceType.objects
+        .exclude(name__iexact='cleaning')
+        .filter(schedules__isnull=False)
+        .distinct()
+        .order_by('name')
+    )
+    return render(request, 'schedule.html', {'services': services, 'kind': kind})   
+
+
+def _service_breakdown(jobs):
+    """Jobs, revenue, expenses and profit for each service, biggest earner first."""
+    rows = {}
+    for job in jobs:
+        name = job.service_name
+        row = rows.setdefault(name, {
+            'name': name,
+            'is_cleaning': name.lower() == 'cleaning',
+            'count': 0,
+            'revenue': 0.0,
+            'expenses': 0.0,
+            'profit': 0.0,
+        })
+        row['count'] += 1
+        row['revenue'] += float(job.revenue or 0)
+        row['expenses'] += float(job.total_expenses or 0)
+        row['profit'] += float(job.net_profit or 0)
+    return sorted(rows.values(), key=lambda r: (-r['revenue'], r['name']))
 
 
 @owner_required
 def monthly_reports_view(request):
     jobs = CleaningJob.objects.select_related(
         'customer',
-        'site'
+        'site',
+        'service_type'
     ).prefetch_related(
         'expenses'
     ).order_by('-date')
@@ -327,6 +398,10 @@ def monthly_reports_view(request):
     # Convert dictionary to list
     reports = list(reports.values())
 
+    # Service breakdown for each month
+    for report in reports:
+        report['services'] = _service_breakdown(report['jobs'])
+
 
     # Sort newest month first
     reports.sort(
@@ -351,6 +426,9 @@ def monthly_reports_view(request):
         'all_time_free': all_time_free,
 
         'all_time_outstanding': all_time_outstanding,
+
+        # By service, all time
+        'all_time_services': _service_breakdown(jobs),
     }
 
     return render(
@@ -384,7 +462,8 @@ def monthly_report_detail_view(request, month):
         date__month=month_number
     ).select_related(
         'customer',
-        'site'
+        'site',
+        'service_type'
     ).prefetch_related(
         'expenses'
     ).order_by('-date')
@@ -482,6 +561,8 @@ def monthly_report_detail_view(request, month):
 
         'expense_items': expense_items,
         'total_manual_expenses': total_manual_expenses,
+
+        'services': _service_breakdown(jobs),
     }
 
 
@@ -955,6 +1036,13 @@ def fill_site_coordinates_view(request):
     return redirect('canvassing')
 
 
+def _schedule_calendar_url(schedule):
+    """The calendar this schedule belongs on: Cleaning or Services."""
+    from django.urls import reverse
+    kind = 'cleaning' if schedule.service_name.lower() == 'cleaning' else 'services'
+    return f"{reverse('schedule')}?type={kind}"
+
+
 @owner_required
 def add_schedule_view(request):
 
@@ -964,25 +1052,33 @@ def add_schedule_view(request):
 
         if form.is_valid():
 
-            form.save()
+            schedule = form.save()
 
-            return redirect('schedule')
+            return redirect(_schedule_calendar_url(schedule))
 
     else:
 
-        form = CleaningScheduleForm(
-            initial={
-                'scheduled_date': datetime.now().date(),
-                'status': 'Scheduled',
-            }
-        )
+        initial = {
+            'scheduled_date': datetime.now().date(),
+            'status': 'Scheduled',
+        }
+
+        # "+ Add Cleaning" sends ?service=Cleaning, "+ Add Service Visit" sends ?service=
+        if 'service' in request.GET:
+            initial['service'] = request.GET['service']
+
+        form = CleaningScheduleForm(initial=initial)
 
     return render(
         request,
         'schedule_form.html',
         {
             'form': form,
-            'title': 'Add Cleaning Schedule',
+            'title': (
+                'Add Cleaning' if request.GET.get('service', '').lower() == 'cleaning'
+                else 'Add Service Visit' if 'service' in request.GET
+                else 'Add Schedule'
+            ),
             'button_text': 'Save Schedule',
         }
     )
@@ -1005,9 +1101,9 @@ def edit_schedule_view(request, pk):
 
         if form.is_valid():
 
-            form.save()
+            schedule = form.save()
 
-            return redirect('schedule')
+            return redirect(_schedule_calendar_url(schedule))
 
     else:
 
@@ -1020,7 +1116,7 @@ def edit_schedule_view(request, pk):
         'schedule_form.html',
         {
             'form': form,
-            'title': 'Edit Cleaning Schedule',
+            'title': f'Edit {schedule.service_name} Schedule',
             'button_text': 'Update Schedule',
             'schedule': schedule,
         }
@@ -1068,6 +1164,13 @@ def update_schedule_status_view(request, pk):
 
     new_status = request.POST.get('status')
 
+    # Employees can only mark their job as done
+    if not request.user.is_staff and new_status != 'Completed':
+        return JsonResponse(
+            {'success': False, 'error': 'Not allowed.'},
+            status=403
+        )
+
     valid_statuses = dict(
         CleaningSchedule.STATUS_CHOICES
     )
@@ -1110,6 +1213,13 @@ def _schedule_events(schedules, for_owner):
     for schedule in schedules:
 
         customer_name = schedule.get_customer_name()
+        service = schedule.service_name
+
+        # Cleaning stays just the name; other services show first
+        if service.lower() == 'cleaning':
+            title = customer_name
+        else:
+            title = f"{service} – {customer_name}"
 
         if schedule.scheduled_time:
             start = (
@@ -1130,6 +1240,7 @@ def _schedule_events(schedules, for_owner):
 
         props = {
             'customer_name': customer_name,
+            'service': service,
             'location': schedule.get_location() or '',
             'address': (
                 schedule.site.address if schedule.site else schedule.address
@@ -1159,7 +1270,7 @@ def _schedule_events(schedules, for_owner):
 
         events.append({
             'id': str(schedule.id),
-            'title': customer_name,
+            'title': title,
             'start': start,
             'allDay': schedule.scheduled_time is None,
             'backgroundColor': color,
@@ -1175,9 +1286,27 @@ def schedule_events_api(request):
 
     schedules = (
         CleaningSchedule.objects
-        .select_related('customer', 'site', 'assigned_to')
+        .select_related('customer', 'site', 'assigned_to', 'service_type')
         .all()
     )
+
+    is_cleaning = Q(service_type__isnull=True) | Q(service_type__name__iexact='cleaning')
+
+    # Which calendar: cleaning jobs only, or every other service
+    kind = request.GET.get('type')
+    if kind == 'cleaning':
+        schedules = schedules.filter(is_cleaning)
+    elif kind == 'services':
+        schedules = schedules.exclude(is_cleaning)
+
+    # "Show:" filter on the Services calendar
+    service_id = request.GET.get('service')
+    if service_id == 'cleaning':
+        schedules = schedules.filter(
+            Q(service_type__isnull=True) | Q(service_type__name__iexact='cleaning')
+        )
+    elif service_id and service_id.isdigit():
+        schedules = schedules.filter(service_type_id=int(service_id))
 
     return JsonResponse(
         _schedule_events(schedules, for_owner=True),
@@ -1192,7 +1321,7 @@ def my_schedule_events_api(request):
         CleaningSchedule.objects
         .filter(assigned_to=request.user)
         .exclude(status='Cancelled')
-        .select_related('customer', 'site', 'assigned_to')
+        .select_related('customer', 'site', 'assigned_to', 'service_type')
     )
 
     return JsonResponse(
@@ -1379,7 +1508,7 @@ def my_schedule_view(request):
             assigned_to=request.user,
             status__in=['Scheduled', 'Rescheduled'],
         )
-        .select_related('customer', 'site')
+        .select_related('customer', 'site', 'service_type')
         .order_by('scheduled_date', 'scheduled_time')
     )
 
@@ -1475,7 +1604,7 @@ def employee_add_job_view(request):
 
             messages.success(
                 request,
-                "Cleaning recorded. Thank you!"
+                f"{job.service_name} recorded. Thank you!"
             )
 
             return redirect('my_schedule')
@@ -1495,6 +1624,7 @@ def employee_add_job_view(request):
 
             initial['customer'] = schedule.customer_id
             initial['site'] = schedule.site_id
+            initial['service'] = schedule.service_name
 
         form = EmployeeJobForm(
             initial=initial,

@@ -27,6 +27,12 @@
         </div>
 
 
+        <div class="mb-1">
+            <span class="badge {% if schedule.service_name|lower == 'cleaning' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">
+                {{ schedule.service_name }}
+            </span>
+        </div>
+
         <h5 class="fw-bold mb-1">{{ schedule.get_customer_name }}</h5>
 
         {% with loc=schedule.get_location %}
@@ -58,7 +64,7 @@
 
             {% if schedule.site %}
                 <a href="{% url 'employee_add_job' %}?schedule={{ schedule.id }}" class="btn btn-dark btn-sm ms-auto">
-                    ✅ Done – Record Cleaning
+                    ✅ Done – Record {{ schedule.service_name }}
                 </a>
             {% else %}
                 <button type="button" class="btn btn-dark btn-sm ms-auto" onclick="markCompleted({{ schedule.id }}, this)">

@@ -2,11 +2,12 @@
 {% block content %}
 <div class="row mb-4 align-items-center">
     <div class="col-md-6">
-        <h2>All Cleaning Records</h2>
+        <h2>{% if needs_amount %}Service Jobs Without an Amount{% else %}All Jobs{% endif %}</h2>
+        {% if needs_amount %}<a href="{% url 'job_list' %}" class="small">← Show all jobs</a>{% endif %}
     </div>
     <div class="col-md-6">
         <form method="get" class="d-flex">
-            <input type="text" name="q" class="form-control me-2" placeholder="Search customer, site, or kW..." value="{{ query }}">
+            <input type="text" name="q" class="form-control me-2" placeholder="Search customer, site, kW or service..." value="{{ query }}">
             <button type="submit" class="btn btn-outline-dark">Search</button>
         </form>
     </div>
@@ -18,6 +19,7 @@
             <thead class="table-dark">
                 <tr>
                     <th>Date</th>
+                    <th>Service</th>
                     <th>Customer / Site</th>
                     <th>Size</th>
                     <th>Status</th>
@@ -30,6 +32,13 @@
                 {% for job in jobs %}
                 <tr>
                     <td>{{ job.date }}</td>
+                    <td>
+                        {% if job.service_name|lower == 'cleaning' %}
+                            <span class="badge text-bg-secondary">Cleaning</span>
+                        {% else %}
+                            <span class="badge text-bg-warning">{{ job.service_name }}</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <strong>{{ job.customer.name }}</strong><br>
                         <small class="text-muted">{{ job.site.location }}</small>
@@ -89,7 +98,12 @@
     {% endif %}
 
 </td>
-                    <td>₹{{ job.revenue }}</td>
+                    <td>
+                        ₹{{ job.revenue }}
+                        {% if not job.is_free and job.revenue == 0 and job.service_name|lower != 'cleaning' %}
+                            <br><a href="{% url 'edit_job' job.id %}" class="badge text-bg-danger text-decoration-none">⚠ Add amount</a>
+                        {% endif %}
+                    </td>
                     <td>
                         ₹{{ job.total_expenses }}
                         <button class="btn btn-sm btn-link p-0 ms-1" type="button" data-bs-toggle="collapse" data-bs-target="#exp-{{ job.id }}">
@@ -111,7 +125,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">No cleaning records found.</td>
+                    <td colspan="8" class="text-center py-4 text-muted">No jobs found.</td>
                 </tr>
                 {% endfor %}
             </tbody>

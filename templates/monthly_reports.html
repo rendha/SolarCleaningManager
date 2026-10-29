@@ -12,7 +12,7 @@
             </h1>
 
             <p class="text-muted mb-0">
-                Complete financial and cleaning history
+                Income and profit for all jobs and services
             </p>
         </div>
 
@@ -144,7 +144,7 @@
                     </h2>
 
                     <div class="text-muted">
-                        Total Cleanings
+                        Total Jobs
                     </div>
 
                 </div>
@@ -207,7 +207,7 @@
                     </h2>
 
                     <div class="text-muted">
-                        Free Cleanings
+                        Free Jobs
                     </div>
 
                 </div>
@@ -218,6 +218,56 @@
 
     </div>
 
+
+
+
+    <!-- ========================================= -->
+    <!-- BY SERVICE -->
+    <!-- ========================================= -->
+
+    <h4 class="mb-3">
+        By Service (All Time)
+    </h4>
+
+    {% if all_time_services %}
+
+        <div class="table-responsive mb-5">
+
+            <table class="table table-hover align-middle bg-white shadow-sm">
+
+                <thead class="table-light">
+                    <tr>
+                        <th>Service</th>
+                        <th class="text-end">Jobs</th>
+                        <th class="text-end">Revenue</th>
+                        <th class="text-end">Expenses</th>
+                        <th class="text-end">Profit</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for s in all_time_services %}
+                        <tr>
+                            <td>
+                                {% if s.is_cleaning %}
+                                    <span class="badge text-bg-secondary">Cleaning</span>
+                                {% else %}
+                                    <span class="badge text-bg-warning">{{ s.name }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ s.count }}</td>
+                            <td class="text-end text-success">₹{{ s.revenue|floatformat:2 }}</td>
+                            <td class="text-end text-danger">₹{{ s.expenses|floatformat:2 }}</td>
+                            <td class="text-end fw-bold {% if s.profit < 0 %}text-danger{% else %}text-primary{% endif %}">₹{{ s.profit|floatformat:2 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+
+    {% endif %}
 
 
     <!-- ========================================= -->
@@ -252,7 +302,7 @@
                             <div class="text-muted mb-3">
 
                                 {{ report.cleanings }}
-                                cleaning{{ report.cleanings|pluralize }}
+                                job{{ report.cleanings|pluralize }}
 
                             </div>
 
@@ -295,6 +345,19 @@
 
                             </div>
 
+
+                            {% if report.services|length > 1 or report.services.0 and not report.services.0.is_cleaning %}
+
+                                <div class="small border rounded p-2 mb-3 bg-light">
+                                    {% for s in report.services %}
+                                        <div class="d-flex justify-content-between">
+                                            <span>{{ s.name }} ({{ s.count }})</span>
+                                            <span class="text-success">₹{{ s.revenue|floatformat:0 }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                            {% endif %}
 
                             <hr>
 
@@ -378,7 +441,7 @@
 
         <div class="alert alert-info">
 
-            No cleaning records found yet.
+            No jobs recorded yet.
 
         </div>
 
