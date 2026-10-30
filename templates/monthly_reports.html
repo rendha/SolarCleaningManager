@@ -8,7 +8,7 @@
 
         <div>
             <h1 class="mb-1">
-                📊 Monthly Reports
+                Monthly Reports
             </h1>
 
             <p class="text-muted mb-0">
@@ -222,6 +222,21 @@
 
 
     <!-- ========================================= -->
+    <!-- 12-MONTH TREND -->
+    <!-- ========================================= -->
+
+    {% if reports|length > 1 %}
+        <div class="card shadow-sm mb-5">
+            <div class="card-body">
+                <h4 class="mb-3">Last 12 months</h4>
+                <div style="position: relative; height: 280px;">
+                    <canvas id="trendChart" aria-label="Revenue, expenses and profit for the last 12 months"></canvas>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- ========================================= -->
     <!-- BY SERVICE -->
     <!-- ========================================= -->
 
@@ -365,7 +380,7 @@
                             <div class="d-flex justify-content-between mb-2">
 
                                 <span>
-                                    🟢 Paid
+                                    Paid
                                 </span>
 
                                 <strong>
@@ -378,7 +393,7 @@
                             <div class="d-flex justify-content-between mb-2">
 
                                 <span>
-                                    🔴 Unpaid
+                                    Unpaid
                                 </span>
 
                                 <strong>
@@ -391,13 +406,23 @@
                             <div class="d-flex justify-content-between mb-3">
 
                                 <span>
-                                    🎁 Free
+                                    Free
                                 </span>
 
                                 <strong>
                                     {{ report.free_count }}
                                 </strong>
 
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>Collected</span>
+                                    <strong>{{ report.collected_pct }}%</strong>
+                                </div>
+                                <div class="progress" style="height: 6px;" role="progressbar" aria-label="Collected" aria-valuenow="{{ report.collected_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-success" style="width: {{ report.collected_pct }}%"></div>
+                                </div>
                             </div>
 
 
@@ -450,4 +475,45 @@
 
 </div>
 
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{{ trend|json_script:"trend-data" }}
+<script>
+(function () {
+    const el = document.getElementById('trendChart');
+    if (!el || typeof Chart === 'undefined') return;
+
+    const d = JSON.parse(document.getElementById('trend-data').textContent);
+    const css = getComputedStyle(document.documentElement);
+    const ink = css.getPropertyValue('--sc-muted').trim() || '#64748B';
+    const grid = css.getPropertyValue('--sc-border').trim() || '#E2E8F0';
+
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: d.labels,
+            datasets: [
+                { label: 'Revenue', data: d.revenue, backgroundColor: 'rgba(21, 128, 61, 0.75)', borderRadius: 4 },
+                { label: 'Expenses', data: d.expenses, backgroundColor: 'rgba(185, 28, 28, 0.65)', borderRadius: 4 },
+                { type: 'line', label: 'Profit', data: d.profit, borderColor: '#0369A1', backgroundColor: '#0369A1', tension: 0.3, pointRadius: 3 }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { labels: { color: ink } },
+                tooltip: { callbacks: { label: c => c.dataset.label + ': ₹' + Number(c.raw).toLocaleString('en-IN') } }
+            },
+            scales: {
+                x: { ticks: { color: ink }, grid: { display: false } },
+                y: { ticks: { color: ink, callback: v => '₹' + Number(v).toLocaleString('en-IN') }, grid: { color: grid }, beginAtZero: true }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

@@ -12,7 +12,7 @@
         <div>
 
             <h1>
-                📊 {{ month_name }}
+                {{ month_name }}
             </h1>
 
             <p class="text-muted">
@@ -128,59 +128,185 @@
 
 
     <!-- ========================================= -->
-    <!-- PAYMENT SUMMARY -->
+    <!-- PAYMENTS -->
     <!-- ========================================= -->
 
-    <div class="row g-3 mb-5">
+    <div class="row g-3 mb-4">
 
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
 
-        <div class="col-md-4">
+                    <h5 class="mb-3">Payments</h5>
 
-            <div class="alert alert-success">
+                    <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+                        <span><strong>₹{{ payments.collected|floatformat:0 }}</strong> collected of ₹{{ payments.billed|floatformat:0 }} billed</span>
+                        <span class="fw-bold {% if payments.collected_pct >= 90 %}text-success{% elif payments.collected_pct >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ payments.collected_pct }}%</span>
+                    </div>
 
-                🟢 Paid Jobs:
+                    <div class="progress mb-3" role="progressbar" aria-label="Collected" aria-valuenow="{{ payments.collected_pct }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
+                        <div class="progress-bar bg-success" style="width: {{ payments.collected_pct }}%"></div>
+                    </div>
 
-                <strong>
-                    {{ paid_count }}
-                </strong>
+                    <div class="row text-center g-2">
+                        <div class="col-4">
+                            <div class="small text-muted">Paid jobs</div>
+                            <div class="fs-5 fw-bold text-success">{{ payments.paid_jobs }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">Unpaid jobs</div>
+                            <div class="fs-5 fw-bold text-danger">{{ payments.unpaid_jobs }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">To collect</div>
+                            <div class="fs-5 fw-bold text-danger">₹{{ payments.to_collect|floatformat:0 }}</div>
+                        </div>
+                    </div>
 
+                </div>
             </div>
-
         </div>
 
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
 
-        <div class="col-md-4">
+                    <h5 class="mb-3">Still to collect</h5>
 
-            <div class="alert alert-danger">
+                    {% if payments.unpaid_list %}
+                        <ul class="list-group list-group-flush">
+                            {% for row in payments.unpaid_list %}
+                                <li class="list-group-item px-0 d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="fw-semibold">{{ row.customer.name|default:"-" }}</div>
+                                        <div class="small text-muted">
+                                            {% if row.phone %}{{ row.phone }} · {% endif %}{{ row.job.date|date:"d M" }}
+                                            {% if row.days is not None %}· {{ row.days }} day{{ row.days|pluralize }} ago{% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="fw-bold text-danger text-nowrap">₹{{ row.amount|floatformat:0 }}</div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">Everything for this month has been collected.</p>
+                    {% endif %}
 
-                🔴 Unpaid Jobs:
-
-                <strong>
-                    {{ unpaid_count }}
-                </strong>
-
+                </div>
             </div>
-
-        </div>
-
-
-        <div class="col-md-4">
-
-            <div class="alert alert-warning">
-
-                💰 Outstanding:
-
-                <strong>
-                    ₹{{ outstanding|floatformat:2 }}
-                </strong>
-
-            </div>
-
         </div>
 
     </div>
 
 
+    <!-- ========================================= -->
+    <!-- COMPARED WITH LAST MONTH -->
+    <!-- ========================================= -->
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+
+            <h5 class="mb-3">Compared with {{ comparison.prev_name }}</h5>
+
+            <div class="row g-3 mb-3">
+                {% for row in comparison.rows %}
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted">{{ row.label }}</div>
+                            <div class="fs-5 fw-bold">
+                                {% if row.money %}₹{{ row.now|floatformat:0 }}{% else %}{{ row.now }}{% endif %}
+                            </div>
+                            <div class="small">
+                                {% if row.change is None %}
+                                    <span class="text-muted">No data last month</span>
+                                {% elif row.change > 0 %}
+                                    <span class="{% if row.good_when_up %}text-success{% else %}text-danger{% endif %}">▲ {{ row.change }}%</span>
+                                {% elif row.change < 0 %}
+                                    <span class="{% if row.good_when_up %}text-danger{% else %}text-success{% endif %}">▼ {{ row.change|stringformat:"s"|slice:"1:" }}%</span>
+                                {% else %}
+                                    <span class="text-muted">No change</span>
+                                {% endif %}
+                                <span class="text-muted">
+                                    (was {% if row.money %}₹{{ row.before|floatformat:0 }}{% else %}{{ row.before }}{% endif %})
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="small text-muted mb-1">Jobs and revenue by day</div>
+            <div style="position: relative; height: 240px;">
+                <canvas id="dailyChart" aria-label="Jobs and revenue for each day of the month"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- CLEANING BREAKDOWN -->
+    <!-- ========================================= -->
+
+    <div class="card shadow-sm mb-5">
+        <div class="card-body">
+
+            <h5 class="mb-3">Cleaning breakdown</h5>
+
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="small text-muted">Cleanings</div>
+                        <div class="fs-5 fw-bold">{{ cleaning.total }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="small text-muted">Paid cleanings</div>
+                        <div class="fs-5 fw-bold text-success">{{ cleaning.paid }}</div>
+                        <div class="small text-muted">₹{{ cleaning.paid_revenue|floatformat:0 }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="small text-muted">Free first cleanings</div>
+                        <div class="fs-5 fw-bold text-primary">{{ cleaning.free }}</div>
+                        <div class="small text-muted">
+                            Worth ₹{{ cleaning.free_value|floatformat:0 }}
+                            {% if cleaning.free_unpriced %}(+{{ cleaning.free_unpriced }} not on rate card){% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="small text-muted">Customers</div>
+                        <div class="fs-5 fw-bold">{{ cleaning.new_customers }} new</div>
+                        <div class="small text-muted">{{ cleaning.repeat_customers }} returning</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if cleaning.number_split %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Cleaning number</th><th class="text-end">Jobs</th><th class="text-end">Revenue</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for row in cleaning.number_split %}
+                                <tr>
+                                    <td>{{ row.label }}</td>
+                                    <td class="text-end">{{ row.count }}</td>
+                                    <td class="text-end">₹{{ row.revenue|floatformat:0 }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
 
 
     <!-- ========================================= -->
@@ -230,6 +356,85 @@
         </div>
 
     {% endif %}
+
+
+    <!-- ========================================= -->
+    <!-- SIZE AND PRICING / WORK BY PERSON -->
+    <!-- ========================================= -->
+
+    <div class="row g-3 mb-5">
+
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0">By system size</h5>
+                        <div class="small text-muted">
+                            Avg price <strong class="text-dark">₹{{ pricing.avg_price|floatformat:0 }}</strong>
+                            · Avg profit <strong class="text-dark">₹{{ pricing.avg_profit|floatformat:0 }}</strong> per job
+                        </div>
+                    </div>
+
+                    {% if by_size %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Size</th><th class="text-end">Jobs</th><th class="text-end">Revenue</th><th class="text-end">Profit</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in by_size %}
+                                        <tr>
+                                            <td>{{ row.label }}</td>
+                                            <td class="text-end">{{ row.count }}</td>
+                                            <td class="text-end">₹{{ row.revenue|floatformat:0 }}</td>
+                                            <td class="text-end fw-semibold {% if row.profit < 0 %}text-danger{% else %}text-success{% endif %}">₹{{ row.profit|floatformat:0 }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No jobs this month.</p>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+
+                    <h5 class="mb-3">Work by person</h5>
+
+                    {% if by_person %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Name</th><th class="text-end">Jobs</th><th class="text-end">Cleaning</th><th class="text-end">Services</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in by_person %}
+                                        <tr>
+                                            <td>{{ row.name }}</td>
+                                            <td class="text-end fw-bold">{{ row.count }}</td>
+                                            <td class="text-end">{{ row.cleanings }}</td>
+                                            <td class="text-end">{{ row.services }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No jobs this month.</p>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+
+    </div>
 
 
     <!-- ========================================= -->
@@ -414,14 +619,52 @@
 
 
     <!-- ========================================= -->
-    <!-- EXPENSE DETAILS -->
+    <!-- EXPENSES BY TYPE -->
     <!-- ========================================= -->
 
     <hr class="my-5">
 
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+        <h3 class="mb-0">Expenses by type</h3>
+        {% if expense_groups.pct_of_revenue is not None %}
+            <div class="text-muted">Expenses were <strong class="text-dark">{{ expense_groups.pct_of_revenue }}%</strong> of revenue</div>
+        {% endif %}
+    </div>
+
+    {% if expense_groups.groups %}
+        <div class="table-responsive mb-4">
+            <table class="table table-hover align-middle bg-white shadow-sm">
+                <thead class="table-light">
+                    <tr><th>Expense</th><th class="text-end">Times</th><th class="text-end">Total</th><th style="width: 35%;">Share</th></tr>
+                </thead>
+                <tbody>
+                    {% for g in expense_groups.groups %}
+                        <tr>
+                            <td>{{ g.name }}</td>
+                            <td class="text-end">{{ g.count }}</td>
+                            <td class="text-end text-danger fw-semibold">₹{{ g.total|floatformat:0 }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height: 8px;" role="progressbar" aria-label="{{ g.name }} share" aria-valuenow="{{ g.share }}" aria-valuemin="0" aria-valuemax="100">
+                                        <div class="progress-bar bg-danger" style="width: {{ g.share }}%"></div>
+                                    </div>
+                                    <span class="small text-muted" style="min-width: 3ch;">{{ g.share }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+
+    <!-- ========================================= -->
+    <!-- EXPENSE DETAILS -->
+    <!-- ========================================= -->
 
     <h3 class="mb-3">
-        💸 Expense Details
+        All expenses
     </h3>
 
 
@@ -537,4 +780,44 @@
 
 </div>
 
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{{ daily_chart|json_script:"daily-data" }}
+<script>
+(function () {
+    const el = document.getElementById('dailyChart');
+    if (!el || typeof Chart === 'undefined') return;
+
+    const d = JSON.parse(document.getElementById('daily-data').textContent);
+    const css = getComputedStyle(document.documentElement);
+    const ink = css.getPropertyValue('--sc-muted').trim() || '#64748B';
+    const grid = css.getPropertyValue('--sc-border').trim() || '#E2E8F0';
+    const accent = css.getPropertyValue('--sc-accent').trim() || '#0369A1';
+
+    new Chart(el, {
+        data: {
+            labels: d.labels,
+            datasets: [
+                { type: 'bar', label: 'Revenue (₹)', data: d.revenue, yAxisID: 'y',
+                  backgroundColor: 'rgba(3, 105, 161, 0.25)', borderColor: accent, borderWidth: 1, borderRadius: 4 },
+                { type: 'line', label: 'Jobs', data: d.jobs, yAxisID: 'y1',
+                  borderColor: '#F59E0B', backgroundColor: '#F59E0B', tension: 0.3, pointRadius: 2 }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: ink } } },
+            scales: {
+                x: { ticks: { color: ink }, grid: { display: false } },
+                y: { position: 'left', ticks: { color: ink }, grid: { color: grid }, beginAtZero: true },
+                y1: { position: 'right', ticks: { color: ink, precision: 0 }, grid: { display: false }, beginAtZero: true }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

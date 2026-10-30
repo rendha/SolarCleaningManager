@@ -490,3 +490,32 @@ body,body.bg-light{background:#F1F5F9!important}
 .form-control:focus,.form-select:focus{border-color:#7DD3FC;box-shadow:0 0 0 .2rem rgba(3,105,161,.15)}
 .global-back-button{color:#64748B;border-color:#E2E8F0}
 .global-back-button:hover{background:#fff;color:#1E293B}
+
+
+/* ---------- ☰ menu button: dark so it shows on the white top bar ---------- */
+
+.navbar-dark .navbar-toggler {
+    border: 1px solid var(--sc-border);
+    border-radius: 10px;
+    padding: .4rem .6rem;
+}
+
+.navbar-dark .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%231E293B' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+.navbar-dark .navbar-toggler:focus {
+    box-shadow: 0 0 0 .2rem rgba(3, 105, 161, .18);
+}
+
+/* Opened ☰ menu: one link per row, highlighted page stays visible */
+@media (max-width: 1199.98px) {
+    .navbar-collapse { padding-block: .5rem; }
+    .navbar-collapse .nav-link,
+    .navbar-collapse .nav-logout-button {
+        border-top: 1px solid var(--sc-border);
+        border-radius: 8px;
+        padding-left: .75rem !important;
+    }
+    .navbar-collapse .nav-logout-button { width: 100%; text-align: left; }
+}

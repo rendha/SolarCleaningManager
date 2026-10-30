@@ -280,6 +280,234 @@ def _service_breakdown(jobs):
     return sorted(rows.values(), key=lambda r: (-r['revenue'], r['name']))
 
 
+# =====================================================================
+# DETAILED MONTH REPORT
+# =====================================================================
+
+def _kw_number(text):
+    """'5 kW', '5KW', '5.0' -> 5.0 ; '' -> None"""
+    match = re.search(r'(\d+(?:\.\d+)?)', str(text or ''))
+    return float(match.group(1)) if match else None
+
+
+def _rate_card_lookup():
+    """{kW: rate} from the rate card, used to value free cleanings."""
+    from .models import RateCard
+    rates = {}
+    for rate in RateCard.objects.all():
+        size = _kw_number(rate.system_size_kw)
+        if size is not None:
+            rates[size] = float(rate.rate)
+    return rates
+
+
+def _pct_change(now, before):
+    if not before:
+        return None
+    return round((now - before) / abs(before) * 100, 1)
+
+
+def _month_totals(jobs):
+    revenue = sum(float(j.revenue or 0) for j in jobs)
+    expenses = sum(float(j.total_expenses or 0) for j in jobs)
+    return {
+        'jobs': len(jobs),
+        'revenue': revenue,
+        'expenses': expenses,
+        'profit': revenue - expenses,
+    }
+
+
+def _month_insights(jobs, year, month_number):
+    """Everything shown in the detailed month report."""
+    import calendar
+    from datetime import date
+    from django.db.models import Min
+
+    jobs = list(jobs)
+    today = datetime.now().date()
+
+    def is_cleaning(job):
+        return job.service_name.lower() == 'cleaning'
+
+    cleaning_jobs = [j for j in jobs if is_cleaning(j)]
+
+    # ---------- 1. Cleaning breakdown ----------
+    rates = _rate_card_lookup()
+
+    free_jobs = [j for j in cleaning_jobs if j.is_free]
+    paid_cleanings = [j for j in cleaning_jobs if not j.is_free]
+
+    free_value = 0.0
+    free_unpriced = 0
+    for job in free_jobs:
+        rate = rates.get(_kw_number(job.site.solar_kw if job.site else None))
+        if rate is None:
+            free_unpriced += 1
+        else:
+            free_value += rate
+
+    number_split = {}
+    for job in cleaning_jobs:
+        n = job.cleaning_number or 1
+        label = f'{n}{"st" if n == 1 else "nd" if n == 2 else "rd" if n == 3 else "th"} cleaning'
+        row = number_split.setdefault(n, {'label': label, 'count': 0, 'revenue': 0.0})
+        row['count'] += 1
+        row['revenue'] += float(job.revenue or 0)
+    number_split = [number_split[k] for k in sorted(number_split)]
+
+    customer_ids = {j.customer_id for j in jobs if j.customer_id}
+    first_dates = dict(
+        CleaningJob.objects
+        .filter(customer_id__in=customer_ids)
+        .values('customer_id')
+        .annotate(first=Min('date'))
+        .values_list('customer_id', 'first')
+    )
+    new_customers = sum(
+        1 for cid in customer_ids
+        if first_dates.get(cid) and first_dates[cid].year == year and first_dates[cid].month == month_number
+    )
+    repeat_customers = len(customer_ids) - new_customers
+
+    cleaning = {
+        'total': len(cleaning_jobs),
+        'free': len(free_jobs),
+        'paid': len(paid_cleanings),
+        'paid_revenue': sum(float(j.revenue or 0) for j in paid_cleanings),
+        'free_value': free_value,
+        'free_unpriced': free_unpriced,
+        'number_split': number_split,
+        'new_customers': new_customers,
+        'repeat_customers': repeat_customers,
+    }
+
+    # ---------- 2. Payments ----------
+    billable = [j for j in jobs if not j.is_free]
+    billed = sum(float(j.revenue or 0) for j in billable)
+    collected = sum(float(j.revenue or 0) for j in billable if j.payment_status == 'Paid')
+    to_collect = billed - collected
+
+    unpaid_list = sorted(
+        [
+            {
+                'job': j,
+                'customer': j.customer,
+                'phone': j.customer.phone if j.customer else '',
+                'amount': float(j.revenue or 0),
+                'days': (today - j.date).days if j.date else None,
+            }
+            for j in billable if j.payment_status != 'Paid'
+        ],
+        key=lambda r: -(r['days'] or 0)
+    )
+
+    payments = {
+        'billed': billed,
+        'collected': collected,
+        'to_collect': to_collect,
+        'collected_pct': round(collected / billed * 100) if billed else 0,
+        'paid_jobs': sum(1 for j in billable if j.payment_status == 'Paid'),
+        'unpaid_jobs': len(unpaid_list),
+        'unpaid_list': unpaid_list,
+    }
+
+    # ---------- 3. Size and pricing ----------
+    sizes = {}
+    for job in jobs:
+        kw = _kw_number(job.site.solar_kw if job.site else None)
+        key = kw if kw is not None else -1
+        row = sizes.setdefault(key, {
+            'label': (f'{kw:g} kW' if kw is not None else 'Size not set'),
+            'count': 0, 'revenue': 0.0, 'profit': 0.0,
+        })
+        row['count'] += 1
+        row['revenue'] += float(job.revenue or 0)
+        row['profit'] += float(job.net_profit or 0)
+    by_size = [sizes[k] for k in sorted(sizes, key=lambda k: (k == -1, k))]
+
+    paid_work = [j for j in jobs if not j.is_free]
+    pricing = {
+        'avg_price': (sum(float(j.revenue or 0) for j in paid_work) / len(paid_work)) if paid_work else 0,
+        'avg_profit': (sum(float(j.net_profit or 0) for j in jobs) / len(jobs)) if jobs else 0,
+    }
+
+    # ---------- 4. Expenses by type ----------
+    groups = {}
+    total_exp = 0.0
+    for job in jobs:
+        for expense in job.expenses.all():
+            name = ' '.join((expense.expense_name or 'Other').split()).title()
+            row = groups.setdefault(name.lower(), {'name': name, 'count': 0, 'total': 0.0})
+            row['count'] += 1
+            row['total'] += float(expense.cost or 0)
+            total_exp += float(expense.cost or 0)
+    revenue_total = sum(float(j.revenue or 0) for j in jobs)
+    for row in groups.values():
+        row['share'] = round(row['total'] / total_exp * 100) if total_exp else 0
+    expenses = {
+        'groups': sorted(groups.values(), key=lambda r: -r['total']),
+        'total': total_exp,
+        'pct_of_revenue': round(sum(float(j.total_expenses or 0) for j in jobs) / revenue_total * 100, 1) if revenue_total else None,
+    }
+
+    # ---------- 5. Work by person ----------
+    people = {}
+    for job in jobs:
+        if job.done_by_id:
+            name = job.done_by.get_full_name() or job.done_by.username
+        else:
+            name = 'Owner / not recorded'
+        row = people.setdefault(name, {'name': name, 'count': 0, 'cleanings': 0, 'services': 0})
+        row['count'] += 1
+        if is_cleaning(job):
+            row['cleanings'] += 1
+        else:
+            row['services'] += 1
+    by_person = sorted(people.values(), key=lambda r: -r['count'])
+
+    # ---------- 6. Compared with last month ----------
+    prev_year, prev_month = (year - 1, 12) if month_number == 1 else (year, month_number - 1)
+    prev_jobs = list(
+        CleaningJob.objects.filter(date__year=prev_year, date__month=prev_month)
+    )
+    now_t = _month_totals(jobs)
+    prev_t = _month_totals(prev_jobs)
+    comparison = {
+        'prev_name': date(prev_year, prev_month, 1).strftime('%B %Y'),
+        'rows': [
+            {'label': label, 'now': now_t[key], 'before': prev_t[key],
+             'change': _pct_change(now_t[key], prev_t[key]), 'money': key != 'jobs',
+             'good_when_up': key != 'expenses'}
+            for key, label in (('jobs', 'Jobs'), ('revenue', 'Revenue'), ('expenses', 'Expenses'), ('profit', 'Profit'))
+        ],
+    }
+
+    days_in_month = calendar.monthrange(year, month_number)[1]
+    daily_jobs = [0] * days_in_month
+    daily_revenue = [0.0] * days_in_month
+    for job in jobs:
+        if job.date:
+            daily_jobs[job.date.day - 1] += 1
+            daily_revenue[job.date.day - 1] += float(job.revenue or 0)
+    daily_chart = {
+        'labels': list(range(1, days_in_month + 1)),
+        'jobs': daily_jobs,
+        'revenue': daily_revenue,
+    }
+
+    return {
+        'cleaning': cleaning,
+        'payments': payments,
+        'by_size': by_size,
+        'pricing': pricing,
+        'expense_groups': expenses,
+        'by_person': by_person,
+        'comparison': comparison,
+        'daily_chart': daily_chart,
+    }
+
+
 @owner_required
 def monthly_reports_view(request):
     jobs = CleaningJob.objects.select_related(
@@ -398,9 +626,14 @@ def monthly_reports_view(request):
     # Convert dictionary to list
     reports = list(reports.values())
 
-    # Service breakdown for each month
+    # Service breakdown and payment collection for each month
     for report in reports:
         report['services'] = _service_breakdown(report['jobs'])
+        billable = [j for j in report['jobs'] if not j.is_free]
+        billed = sum(float(j.revenue or 0) for j in billable)
+        collected = sum(float(j.revenue or 0) for j in billable if j.payment_status == 'Paid')
+        report['collected'] = collected
+        report['collected_pct'] = round(collected / billed * 100) if billed else 0
 
 
     # Sort newest month first
@@ -429,6 +662,14 @@ def monthly_reports_view(request):
 
         # By service, all time
         'all_time_services': _service_breakdown(jobs),
+
+        # Last 12 months, oldest first, for the trend chart
+        'trend': {
+            'labels': [datetime.strptime(r['month'], '%Y-%m').strftime('%b %y') for r in reversed(reports[:12])],
+            'revenue': [round(r['revenue'], 2) for r in reversed(reports[:12])],
+            'expenses': [round(r['expenses'], 2) for r in reversed(reports[:12])],
+            'profit': [round(r['revenue'] - r['expenses'], 2) for r in reversed(reports[:12])],
+        },
     }
 
     return render(
@@ -463,7 +704,8 @@ def monthly_report_detail_view(request, month):
     ).select_related(
         'customer',
         'site',
-        'service_type'
+        'service_type',
+        'done_by'
     ).prefetch_related(
         'expenses'
     ).order_by('-date')
@@ -563,6 +805,9 @@ def monthly_report_detail_view(request, month):
         'total_manual_expenses': total_manual_expenses,
 
         'services': _service_breakdown(jobs),
+
+        # Detailed sections
+        **_month_insights(jobs, year, month_number),
     }
 
 
