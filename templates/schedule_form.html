@@ -121,6 +121,49 @@
         color: #795548;
     }
 
+    /* Office work switch (not a full-width text box) */
+    .schedule-form-container .office-switch {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #F1F5F9;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+    }
+
+    /* Our own switch drawing, so no other style can double the knob */
+    .schedule-form-container .office-switch input.form-check-input {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        width: 2.6em !important;
+        height: 1.4em !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        float: none !important;
+        flex-shrink: 0;
+        cursor: pointer;
+        border: none !important;
+        border-radius: 2em !important;
+        background: #CBD5E1 url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") no-repeat left center / 1.4em 1.4em !important;
+        transition: background-position .15s ease-in-out, background-color .15s;
+    }
+
+    .schedule-form-container .office-switch input.form-check-input:checked {
+        background-color: #0369A1 !important;
+        background-position: right center !important;
+    }
+
+    .schedule-form-container .office-switch input.form-check-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(3, 105, 161, .25) !important;
+    }
+
+    .schedule-form-container .office-switch label {
+        margin: 0;
+        cursor: pointer;
+    }
+
     @media (max-width: 700px) {
 
         .schedule-form-container {
@@ -176,6 +219,32 @@
 
         </div>
 
+
+        <!-- =========================================
+             OFFICE WORK (NO CUSTOMER)
+             ========================================= -->
+
+        <div class="form-group">
+
+            <div class="office-switch form-check form-switch">
+
+                {{ form.office_work }}
+
+                <label for="id_office_work">
+                    Office work (no customer)
+                </label>
+
+            </div>
+
+            <div class="help">
+                Turn on for documentation, paperwork or other office tasks.
+                Customer, site and address are not needed.
+            </div>
+
+        </div>
+
+
+        <div id="customerFields">
 
         <!-- =========================================
              EXISTING CUSTOMER
@@ -317,6 +386,9 @@
             {{ form.address }}
 
         </div>
+
+        </div>
+        <!-- end #customerFields -->
 
 
         <!-- =========================================
@@ -980,6 +1052,28 @@ document.addEventListener(
 
     }
 );
+
+
+/* =====================================================
+   OFFICE WORK SWITCH
+   ===================================================== */
+
+(function () {
+
+    const officeSwitch = document.getElementById('id_office_work');
+    const customerFields = document.getElementById('customerFields');
+
+    if (!officeSwitch || !customerFields) return;
+
+    function update() {
+        customerFields.style.display = officeSwitch.checked ? 'none' : '';
+    }
+
+    officeSwitch.addEventListener('change', update);
+
+    update();   // keeps it hidden when editing an office schedule
+
+})();
 
 
 /* =====================================================
