@@ -285,13 +285,13 @@
 
                         <li class="nav-item">
                             <a class="nav-link{% if page == 'schedule' and kind != 'services' or page == 'add_schedule' or page == 'edit_schedule' %} active-page{% endif %}" href="{% url 'schedule' %}?type=cleaning">
-                                Cleaning Schedule
+                                Cleaning Schedule{% pending_requests_of 'cleaning' as n_cleaning %}{% if n_cleaning %} <span class="badge rounded-pill bg-danger">{{ n_cleaning }}</span>{% endif %}
                             </a>
                         </li>
 
                         <li class="nav-item">
                             <a class="nav-link{% if page == 'schedule' and kind == 'services' %} active-page{% endif %}" href="{% url 'schedule' %}?type=services">
-                                Service Schedule
+                                Service Schedule{% pending_requests_of 'services' as n_services %}{% if n_services %} <span class="badge rounded-pill bg-danger">{{ n_services }}</span>{% endif %}
                             </a>
                         </li>
 
