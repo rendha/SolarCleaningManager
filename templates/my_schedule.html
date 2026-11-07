@@ -204,6 +204,37 @@
 {% block extra_js %}
 <script>
 
+/* ---------- Accept: records the time he started ---------- */
+
+function acceptJob(scheduleId, button) {
+
+    button.disabled = true;
+    button.textContent = 'Saving…';
+
+    fetch(button.dataset.url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`accept-${scheduleId}`).innerHTML =
+                    '<span class="small text-success fw-semibold">⏱ Started ' + (data.accepted_at || 'now') + '</span>';
+                document.getElementById(`done-${scheduleId}`).hidden = false;
+            } else {
+                alert(data.error || 'Could not accept the job.');
+                button.disabled = false;
+                button.textContent = '▶ Accept';
+            }
+        })
+        .catch(() => {
+            alert('No internet connection. Please try again.');
+            button.disabled = false;
+            button.textContent = '▶ Accept';
+        });
+}
+
+
 /* ---------- Mark completed (jobs without a site) ---------- */
 
 function markCompleted(scheduleId, button) {

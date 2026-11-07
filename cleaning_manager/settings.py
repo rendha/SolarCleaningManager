@@ -80,6 +80,12 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
 
+# Stay signed in until the person taps Log out.  Browsers keep a cookie for at most about 400 days, and every visit
+# renews it, so someone who uses the site now and then is never signed out by time.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 400
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
 
 
 # ============================================================

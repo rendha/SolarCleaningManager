@@ -11,3 +11,17 @@ def pending_requests():
         return ScheduleRequest.objects.filter(done=False).count()
     except Exception:
         return 0
+
+
+@register.simple_tag
+def field_team(user):
+    """True for the people who go out to site (they keep My Jobs); everybody else gets the Service Desk menu."""
+    from cleaning.permissions import is_field_team
+    return is_field_team(user)
+
+
+@register.simple_tag
+def scheduler_user(user):
+    """True for the scheduler (Fidha): some owner-menu items are hidden for her."""
+    from cleaning.permissions import is_scheduler
+    return is_scheduler(user)

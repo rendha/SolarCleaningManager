@@ -62,15 +62,27 @@
                 <a href="{{ schedule.site.google_map_link }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">🗺️ Map</a>
             {% endif %}
 
+            <span id="accept-{{ schedule.id }}" class="ms-auto d-flex align-items-center gap-2">
+                {% if schedule.accepted_at %}
+                    <span class="small text-success fw-semibold">⏱ Started {{ schedule.accepted_at|time:"g:i A" }}</span>
+                {% else %}
+                    <button type="button" class="btn btn-success btn-sm" data-url="{% url 'accept_schedule' schedule.id %}" onclick="acceptJob({{ schedule.id }}, this)">
+                        ▶ Accept
+                    </button>
+                {% endif %}
+            </span>
+
+            <span id="done-{{ schedule.id }}" {% if not schedule.accepted_at %}hidden{% endif %}>
             {% if schedule.site %}
-                <a href="{% url 'employee_add_job' %}?schedule={{ schedule.id }}" class="btn btn-dark btn-sm ms-auto">
+                <a href="{% url 'employee_add_job' %}?schedule={{ schedule.id }}" class="btn btn-dark btn-sm">
                     ✅ Done – Record {{ schedule.service_name }}
                 </a>
             {% else %}
-                <button type="button" class="btn btn-dark btn-sm ms-auto" onclick="markCompleted({{ schedule.id }}, this)">
+                <button type="button" class="btn btn-dark btn-sm" onclick="markCompleted({{ schedule.id }}, this)">
                     ✅ Mark Completed
                 </button>
             {% endif %}
+            </span>
 
         </div>
 

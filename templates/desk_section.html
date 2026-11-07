@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .desk { max-width: 760px; margin: 24px auto; }
+    .desk h1 { font-size: 1.7rem; margin: 0 0 4px; }
+    .desk .muted { color: #6b7788; }
+    .desk .big { display: block; background: #fff; border-radius: 16px; padding: 26px 22px; margin-top: 16px; text-decoration: none; color: #1b2a3d;
+                 box-shadow: 0 2px 14px rgba(0,0,0,.09); border: 2px solid transparent; }
+    .desk .big:hover { border-color: #3B73B9; }
+    .desk .big b { font-size: 1.35rem; display: block; }
+    .desk .count { float: right; font-size: 1.6rem; font-weight: 700; color: #3B73B9; }
+    .desk .count.zero { color: #9aa7b8; }
+</style>
+
+<div class="desk">
+    <h1>{% if kind == 'services' %}General services{% else %}Cleaning{% endif %}</h1>
+    <div><a href="{% url 'service_desk' %}">&larr; Back to the Service Desk</a></div>
+
+    <a class="big" href="{% url 'view_schedule' %}?type={{ kind }}">
+        <b>{% if kind == 'services' %}Service calendar{% else %}Cleaning calendar{% endif %}</b>
+        <span class="muted">see what is booked and when &middot; view only</span>
+    </a>
+
+    <a class="big" href="{% url 'to_schedule' %}?type={{ kind }}">
+        <span class="count{% if not count %} zero{% endif %}">{{ count }}</span>
+        <b>Pending schedule list</b>
+        <span class="muted">customers waiting for a date &middot; request a schedule here</span>
+    </a>
+</div>
+{% endblock %}

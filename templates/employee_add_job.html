@@ -105,9 +105,27 @@
 
                     </div>
 
-                    <p class="small text-muted">
-                        Fuel, water, etc. Leave empty if none.
+                    <p class="small text-muted mb-2">
+                        Tap what you spent. Leave empty if none.
                     </p>
+
+                    <div class="d-flex flex-wrap gap-2 mb-2" id="expense-chips">
+                        {% for o in expense_options %}
+                            <button type="button" class="btn btn-outline-primary btn-sm expense-chip" data-name="{{ o.name }}"{% if o.cost %} data-cost="{{ o.cost }}"{% endif %}>
+                                {{ o.name }}{% if o.cost %} · ₹{{ o.cost }}{% endif %}
+                            </button>
+                        {% endfor %}
+                    </div>
+
+                    <div class="small text-muted mb-2">
+                        Breakfast only if you left for the site before 8 am &middot; Dinner only after 8 pm &middot;
+                        Auto: up to ₹{{ auto_limit }} one way, with prior approval &middot; Write each expense clearly.
+                    </div>
+                    <div id="expense-warning" class="text-danger small mb-2" hidden></div>
+
+                    <datalist id="expense-options">
+                        {% for o in expense_options %}<option value="{{ o.name }}">{% endfor %}
+                    </datalist>
 
 
                     {{ formset.management_form }}
@@ -222,6 +240,46 @@
     serviceBox.addEventListener('change', update);
     update();
 
+})();
+
+
+(function () {
+    // quick buttons: fill the next empty row (or add one), with the fixed amount when there is one
+    const AUTO_LIMIT = {{ auto_limit }};
+    const fixed = {};
+    document.querySelectorAll('.expense-chip').forEach(function (b) { fixed[b.dataset.name.toLowerCase()] = b.dataset.cost || ''; });
+    const warn = document.getElementById('expense-warning');
+
+    function rows() { return Array.from(document.querySelectorAll('#expense-forms .expense-row')); }
+    function nameOf(r) { return r.querySelector('input[name$="-expense_name"]'); }
+    function costOf(r) { return r.querySelector('input[name$="-cost"]'); }
+
+    document.querySelectorAll('.expense-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            let row = rows().find(function (r) { return !nameOf(r).value.trim() && !costOf(r).value.trim(); });
+            if (!row) {
+                document.getElementById('add-expense').click();
+                row = rows()[rows().length - 1];
+            }
+            nameOf(row).value = chip.dataset.name;
+            if (chip.dataset.cost) { costOf(row).value = chip.dataset.cost; }
+            check();
+            (chip.dataset.cost ? row : costOf(row)).scrollIntoView({ block: 'nearest' });
+            if (!chip.dataset.cost) { costOf(row).focus(); }
+        });
+    });
+
+    function check() {
+        let message = '';
+        rows().forEach(function (r) {
+            const name = nameOf(r).value.trim().toLowerCase(), cost = parseFloat(costOf(r).value);
+            if (fixed[name] && !costOf(r).value.trim()) { costOf(r).value = fixed[name]; }
+            if (name === 'auto' && cost > AUTO_LIMIT) { message = 'Auto is limited to ₹' + AUTO_LIMIT + ' one way and needs prior approval.'; }
+        });
+        warn.textContent = message; warn.hidden = !message;
+    }
+    document.getElementById('expense-forms').addEventListener('input', check);
+    document.getElementById('expense-forms').addEventListener('change', check);
 })();
 
 

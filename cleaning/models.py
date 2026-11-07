@@ -390,6 +390,20 @@ class CleaningSchedule(models.Model):
         null=True, blank=True, related_name='assigned_schedules'
     )
 
+    # The employee taps "Accept" when he starts, and the job is stamped when it is completed:
+    # the difference is the time he took.
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def took_text(self):
+        """'1 h 25 min' between Accept and Completed, or '' when either is missing."""
+        if not (self.accepted_at and self.completed_at) or self.completed_at < self.accepted_at:
+            return ''
+        minutes = int((self.completed_at - self.accepted_at).total_seconds() // 60)
+        hours, minutes = divmod(minutes, 60)
+        return (f"{hours} h {minutes} min" if hours else f"{minutes} min")
+
     @property
     def service_name(self):
         return self.service_type.name if self.service_type_id else 'Cleaning'
@@ -449,6 +463,7 @@ class ScheduleRequest(models.Model):
     done = models.BooleanField(default=False)
     done_at = models.DateTimeField(null=True, blank=True)
     schedule = models.ForeignKey(CleaningSchedule, on_delete=models.SET_NULL, null=True, blank=True, related_name='from_requests')
+    task_id = models.IntegerField(null=True, blank=True)     # the Task given to the scheduler in the portal (when the portal is there)
 
     class Meta:
         ordering = ['created_at']
@@ -456,6 +471,15 @@ class ScheduleRequest(models.Model):
     @property
     def display_name(self):
         return self.customer.name if self.customer_id else self.customer_name
+
+    @property
+    def is_cleaning(self):
+        return self.service_name.strip().lower() == 'cleaning'
+
+    @property
+    def days_waiting(self):
+        from django.utils import timezone
+        return (timezone.localdate() - timezone.localtime(self.created_at).date()).days
 
     @property
     def display_location(self):

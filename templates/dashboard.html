@@ -85,7 +85,7 @@
                         <div class="small text-muted mt-3">Unpaid: <strong class="text-danger">₹{{ services_summary.unpaid|floatformat:0 }}</strong></div>
                     {% endif %}
                 {% else %}
-                    <p class="text-muted mb-0">No service jobs yet{% if selected_month %} this month{% endif %}. Record one from <a href="{% url 'add_job' %}">Add Job</a>.</p>
+                    <p class="text-muted mb-0">No service jobs yet{% if selected_month %} this month{% endif %}. Record one from <a href="{% url 'add_job' %}">Add Expense</a>.</p>
                 {% endif %}
             </div>
         </div>

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .desk { max-width: 760px; margin: 24px auto; }
+    .desk h1 { font-size: 1.7rem; margin: 0 0 4px; }
+    .desk .muted { color: #6b7788; }
+    .desk .big { display: block; background: #fff; border-radius: 16px; padding: 26px 22px; margin-top: 16px; text-decoration: none; color: #1b2a3d;
+                 box-shadow: 0 2px 14px rgba(0,0,0,.09); border: 2px solid transparent; }
+    .desk .big:hover { border-color: #3B73B9; }
+    .desk .big b { font-size: 1.35rem; display: block; }
+    .desk .count { float: right; font-size: 1.6rem; font-weight: 700; color: #3B73B9; }
+    .desk .count.zero { color: #9aa7b8; }
+    .desk .hint { background: #fff1e0; color: #8a4300; border-radius: 12px; padding: 10px 14px; margin-top: 16px; }
+</style>
+
+<div class="desk">
+    <h1>Service Desk</h1>
+
+    {% if oldest_days >= 3 %}<div class="hint">The oldest customer in the list has been waiting {{ oldest_days }} days.</div>{% endif %}
+
+    <a class="big" href="{% url 'desk_section' 'cleaning' %}">
+        <span class="count{% if not cleaning_count %} zero{% endif %}">{{ cleaning_count }}</span>
+        <b>Cleaning</b>
+        <span class="muted">calendar, pending list and requests</span>
+    </a>
+
+    <a class="big" href="{% url 'desk_section' 'services' %}">
+        <span class="count{% if not services_count %} zero{% endif %}">{{ services_count }}</span>
+        <b>General services</b>
+        <span class="muted">calendar, pending list and requests for inverter, earthing and other visits</span>
+    </a>
+
+    {% if mine %}<div class="muted" style="margin-top:16px">You have added {{ mine }} item{{ mine|pluralize }} that {{ mine|pluralize:"is,are" }} still waiting.</div>{% endif %}
+</div>
+{% endblock %}

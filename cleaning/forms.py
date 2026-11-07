@@ -209,6 +209,23 @@ class CleaningJobForm(ServiceFieldMixin, forms.ModelForm):
         return cleaned_data
 
 
+# Quick choices on the expense list.  The amounts are the company's fixed daily food structure (HR notice).
+# Rules shown under the buttons: Breakfast only if you left for the site before 8 am, Dinner only after 8 pm,
+# Auto at most Rs 120 one way and only with prior approval.
+EXPENSE_OPTIONS = [
+    {'name': 'Breakfast', 'cost': 100},
+    {'name': 'Lunch', 'cost': 100},
+    {'name': 'Tea', 'cost': 30},
+    {'name': 'Dinner', 'cost': 150},
+    {'name': 'Fuel', 'cost': None},
+    {'name': 'Train ticket', 'cost': None},
+    {'name': 'Bus ticket', 'cost': None},
+    {'name': 'Auto', 'cost': None},
+    {'name': 'Water', 'cost': None},
+]
+AUTO_LIMIT = 120
+
+
 JobExpenseFormSet = inlineformset_factory(
     CleaningJob,
     JobExpense,
@@ -220,6 +237,8 @@ JobExpenseFormSet = inlineformset_factory(
             attrs={
                 'class': 'form-control',
                 'placeholder': 'e.g. Fuel, Water',
+                'list': 'expense-options',
+                'autocomplete': 'off',
             }
         ),
         'cost': forms.NumberInput(
