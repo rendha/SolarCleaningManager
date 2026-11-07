@@ -15,7 +15,6 @@
 
 <div class="desk">
     <h1>{% if kind == 'services' %}General services{% else %}Cleaning{% endif %}</h1>
-    <div><a href="{% url 'service_desk' %}">&larr; Back to the Service Desk</a></div>
 
     <a class="big" href="{% url 'view_schedule' %}?type={{ kind }}">
         <b>{% if kind == 'services' %}Service calendar{% else %}Cleaning calendar{% endif %}</b>

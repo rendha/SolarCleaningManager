@@ -17,10 +17,8 @@
 
 <div class="tbs">
     <div class="card-box">
-        {% if not user.is_staff %}{% include "_desk_tabs.html" with tab="pending" pcount=pending|length %}{% endif %}
         <h1>{% if kind == 'cleaning' %}Cleaning - pending{% elif kind == 'services' %}General services - pending{% else %}Pending{% endif %}</h1>
         <div class="muted">Customers who need {% if kind == 'cleaning' %}a cleaning{% elif kind == 'services' %}a service visit{% else %}a cleaning or service visit{% endif %} but do not have a date yet. Anybody can add one; {% if user.is_staff %}tap <b>Schedule it</b> to give it a date.{% else %}{{ scheduler|default:"the scheduler" }} will give it a date.{% endif %}</div>
-        {% if not user.is_staff %}<div style="margin-top:8px"><a href="{% url 'service_desk' %}">&larr; Back to the Service Desk</a></div>{% endif %}
         {% if wa_link %}<div style="margin-top:10px"><a class="btn btn-success btn-sm" target="_blank" rel="noopener" href="{{ wa_link }}">Tell {{ scheduler|default:"the scheduler" }} on WhatsApp</a> <span class="muted">(she already got an alert in the portal; this is an extra nudge)</span></div>{% endif %}
     </div>
 

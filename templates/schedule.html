@@ -161,8 +161,6 @@
 </style>
 {% endif %}
 
-{% if read_only %}{% include "_desk_tabs.html" with tab="calendar" pcount=waiting|length %}{% endif %}
-
 <!-- Switch between the two calendars -->
 <ul class="nav nav-pills mb-3"{% if read_only %} hidden{% endif %}>
     <li class="nav-item">
