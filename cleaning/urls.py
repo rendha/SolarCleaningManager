@@ -40,6 +40,7 @@ urlpatterns = [
 
     # SCHEDULING
     path('schedule/', views.schedule_view, name='schedule'),
+    path('setup/users/', views.add_portal_users_page, name='add_portal_users'),
     path('desk/<slug:kind>/', views.desk_section_view, name='desk_section'),
     path('calendar/', views.view_schedule_view, name='view_schedule'),
     path('api/calendar/events/', views.view_schedule_events_api, name='view_schedule_events_api'),

@@ -23,6 +23,7 @@ FIELDS = ["username", "password", "first_name", "last_name", "email", "is_staff"
 PEOPLE = ["Siraj", "Fousan", "Hudha", "Riswan", "Junaid", "Ziyad", "Aswanth", "Fidha", "Anoop", "Hari", "Robins",
           "Anupama", "Satheesh", "Rijul"]
 RESET_PASSWORDS = {"Imran": "imrandehlsen"}
+OWNERS = {"fidha"}          # made with the owner dashboard (staff) when the portal database is not available (e.g. on Render)
 
 
 def as_datetime(value):
@@ -117,7 +118,7 @@ class Command(BaseCommand):
                         kept.append(name)
                         continue
                     login = name.lower().replace(" ", "")
-                    user = User(username=login, first_name=name)
+                    user = User(username=login, first_name=name, is_staff=login in OWNERS)
                     user.set_password(login + "dehlsen")
                     user.save()
                     added.append("%s (password %sdehlsen)" % (login, login))

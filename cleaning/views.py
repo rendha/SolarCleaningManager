@@ -2127,6 +2127,21 @@ def _finish_scheduler_task(item):
         return
 
 
+def add_portal_users_page(request):
+    """Superuser only: one button that creates the team's logins (the same as  py manage.py add_portal_users)."""
+    from django.core.exceptions import PermissionDenied
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    output = ''
+    if request.method == 'POST':
+        from io import StringIO
+        from django.core.management import call_command
+        buffer = StringIO()
+        call_command('add_portal_users', stdout=buffer)
+        output = buffer.getvalue()
+    return render(request, 'add_portal_users.html', {'output': output, 'page': 'add_users'})
+
+
 def desk_section_view(request, kind):
     """Inside Cleaning / General services: two big buttons, the calendar and the pending list."""
     kind = 'services' if kind == 'services' else 'cleaning'
