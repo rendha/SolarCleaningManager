@@ -2137,8 +2137,12 @@ def add_portal_users_page(request):
         from io import StringIO
         from django.core.management import call_command
         buffer = StringIO()
-        call_command('add_portal_users', stdout=buffer)
-        output = buffer.getvalue()
+        try:
+            call_command('add_portal_users', stdout=buffer)
+            output = buffer.getvalue()
+        except Exception:
+            import traceback
+            output = buffer.getvalue() + '\nSOMETHING WENT WRONG (send this to Claude):\n' + traceback.format_exc()
     return render(request, 'add_portal_users.html', {'output': output, 'page': 'add_users'})
 
 
