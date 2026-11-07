@@ -397,7 +397,8 @@ class CleaningSchedule(models.Model):
 
     @property
     def took_text(self):
-        """'1 h 25 min' between Accept and Completed, or '' when either is missing."""
+        """Accept only means 'I have seen this job' (it is often tapped the day before), so no time is worked out from it."""
+        return ''
         if not (self.accepted_at and self.completed_at) or self.completed_at < self.accepted_at:
             return ''
         minutes = int((self.completed_at - self.accepted_at).total_seconds() // 60)

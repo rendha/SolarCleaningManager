@@ -258,7 +258,7 @@
         <div class="detail-label">Notes</div>
         <div id="modalNotes" class="detail-value"></div>
 
-        <div class="detail-label">Started / time taken</div>
+        <div class="detail-label">Accepted by the employee</div>
         <div id="modalTook" class="detail-value"></div>
 
         <label for="modalStatus" class="detail-label d-block">Status</label>
@@ -446,7 +446,7 @@ function showScheduleModal(event) {
     setText('modalAddress', p.address);
     setText('modalAssigned', p.assigned_to || 'Not assigned');
     setText('modalNotes', p.notes);
-    setText('modalTook', p.accepted_at ? ('Started ' + p.accepted_at + (p.took ? ' · took ' + p.took : '')) : '-');
+    setText('modalTook', p.accepted_at ? ('Accepted ' + p.accepted_at) : '-');
 
     document.getElementById('modalStatus').value = p.status;
     document.getElementById('editButton').href = p.edit_url;

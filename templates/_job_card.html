@@ -64,7 +64,7 @@
 
             <span id="accept-{{ schedule.id }}" class="ms-auto d-flex align-items-center gap-2">
                 {% if schedule.accepted_at %}
-                    <span class="small text-success fw-semibold">⏱ Started {{ schedule.accepted_at|time:"g:i A" }}</span>
+                    <span class="small text-success fw-semibold">✔ Accepted</span>
                 {% else %}
                     <button type="button" class="btn btn-success btn-sm" data-url="{% url 'accept_schedule' schedule.id %}" onclick="acceptJob({{ schedule.id }}, this)">
                         ▶ Accept

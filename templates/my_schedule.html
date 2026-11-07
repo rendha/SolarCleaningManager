@@ -204,7 +204,7 @@
 {% block extra_js %}
 <script>
 
-/* ---------- Accept: records the time he started ---------- */
+/* ---------- Accept: only means "I have seen this job" (no time is worked out from it) ---------- */
 
 function acceptJob(scheduleId, button) {
 
@@ -219,7 +219,7 @@ function acceptJob(scheduleId, button) {
         .then(data => {
             if (data.success) {
                 document.getElementById(`accept-${scheduleId}`).innerHTML =
-                    '<span class="small text-success fw-semibold">⏱ Started ' + (data.accepted_at || 'now') + '</span>';
+                    '<span class="small text-success fw-semibold">✔ Accepted</span>';
                 document.getElementById(`done-${scheduleId}`).hidden = false;
             } else {
                 alert(data.error || 'Could not accept the job.');

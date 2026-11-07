@@ -24,4 +24,4 @@ def field_team(user):
 def scheduler_user(user):
     """True for the scheduler (Fidha): some owner-menu items are hidden for her."""
     from cleaning.permissions import is_scheduler
-    return is_scheduler(user)
+    return is_scheduler(user) or bool(user.is_superuser)
