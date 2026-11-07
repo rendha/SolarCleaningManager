@@ -1530,7 +1530,7 @@ def _schedule_events(schedules, for_owner):
 
         # Cleaning stays just the name; other services show first
         if service.lower() == 'cleaning':
-            title = customer_name
+            title = ('Free – ' if schedule.is_free else 'Paid – ') + customer_name
         else:
             title = f"{service} – {customer_name}"
 
@@ -1565,6 +1565,7 @@ def _schedule_events(schedules, for_owner):
                 schedule.site.solar_kw if schedule.site else schedule.solar_kw
             ) or '',
             'status': schedule.status,
+            'is_free': bool(schedule.is_free),
             'notes': schedule.notes or '',
             'assigned_to': assigned,
             'accepted_at': timezone.localtime(schedule.accepted_at).strftime('%d %b, %I:%M %p') if schedule.accepted_at else '',
@@ -2002,7 +2003,7 @@ def _close_request(pk, schedule):
             _finish_scheduler_task(item)
 
 
-def to_schedule_view(request):
+def to_schedule_view(request, mode='list'):
     pending = ScheduleRequest.objects.filter(done=False).select_related('customer', 'site', 'service_type', 'requested_by')
     recent = (
         ScheduleRequest.objects.filter(done=True)
@@ -2026,7 +2027,7 @@ def to_schedule_view(request):
     return render(request, 'to_schedule.html', {
         'pending': pending, 'recent': recent, 'customers': customers,
         'services': ServiceType.suggestions(), 'today': datetime.now().date(),
-        'page': 'to_schedule', 'kind': kind, 'scheduler': _scheduler_name(),
+        'page': 'to_schedule', 'kind': kind, 'scheduler': _scheduler_name(), 'mode': mode,
         'wa_link': request.session.pop('tbs_wa', ''),
     })
 

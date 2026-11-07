@@ -63,6 +63,7 @@ urlpatterns = [
     # TO BE SCHEDULED
     path('to-schedule/', views.to_schedule_view, name='to_schedule'),
     path('to-schedule/add/', views.to_schedule_add, name='to_schedule_add'),
+    path('to-schedule/new/', views.to_schedule_view, {'mode': 'form'}, name='to_schedule_new'),
     path('to-schedule/<int:pk>/delete/', views.to_schedule_delete, name='to_schedule_delete'),
 
     # CANVASSING

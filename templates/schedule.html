@@ -240,6 +240,9 @@
         <div class="detail-label">Service</div>
         <div id="modalService" class="detail-value"></div>
 
+        <div class="detail-label">Free or paid</div>
+        <div id="modalType" class="detail-value"></div>
+
         <div class="detail-label">When</div>
         <div id="modalWhen" class="detail-value"></div>
 
@@ -440,6 +443,7 @@ function showScheduleModal(event) {
         : '';
 
     setText('modalService', p.service || 'Cleaning');
+    setText('modalType', (p.service || 'Cleaning').toLowerCase() === 'cleaning' ? (p.is_free ? 'Free cleaning' : 'Paid cleaning') : '');
     setText('modalWhen', when);
     setText('modalPhone', p.phone);
     setText('modalLocation', p.location);

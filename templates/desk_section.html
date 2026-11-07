@@ -24,7 +24,12 @@
     <a class="big" href="{% url 'to_schedule' %}?type={{ kind }}">
         <span class="count{% if not count %} zero{% endif %}">{{ count }}</span>
         <b>Pending schedule list</b>
-        <span class="muted">customers waiting for a date &middot; request a schedule here</span>
+        <span class="muted">customers waiting for a date</span>
+    </a>
+
+    <a class="big" href="{% url 'to_schedule_new' %}?type={{ kind }}">
+        <b>Request a schedule</b>
+        <span class="muted">add a customer who needs a date</span>
     </a>
 </div>
 {% endblock %}

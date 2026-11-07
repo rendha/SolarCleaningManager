@@ -392,6 +392,9 @@ class CleaningSchedule(models.Model):
 
     # The employee taps "Accept" when he starts, and the job is stamped when it is completed:
     # the difference is the time he took.
+    # a free cleaning (no charge) or a paid one: shown on the calendar so everybody knows
+    is_free = models.BooleanField(default=False)
+
     accepted_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 

@@ -289,6 +289,7 @@ class CleaningScheduleForm(ServiceFieldMixin, forms.ModelForm):
             'scheduled_time',
             'assigned_to',
             'status',
+            'is_free',
             'notes',
         ]
 
@@ -364,6 +365,8 @@ class CleaningScheduleForm(ServiceFieldMixin, forms.ModelForm):
                     'class': 'form-control',
                 }
             ),
+
+            'is_free': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_is_free', 'role': 'switch'}),
 
             'status': forms.Select(
                 attrs={

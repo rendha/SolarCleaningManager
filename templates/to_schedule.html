@@ -13,15 +13,22 @@
     .tbs label { font-weight: 600; font-size: .85rem; margin-bottom: 4px; display: block; }
     .tbs .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 640px) { .tbs .grid { grid-template-columns: 1fr; } }
+    .tbs .tbs-pick { position: relative; }
+    .tbs .tbs-results { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid #d5dde8; border-radius: 10px;
+                        box-shadow: 0 6px 20px rgba(0,0,0,.15); max-height: 260px; overflow-y: auto; margin-top: 2px; }
+    .tbs .tbs-results button { display: block; width: 100%; text-align: left; border: 0; background: #fff; padding: 9px 12px; border-bottom: 1px solid #eef2f7; }
+    .tbs .tbs-results button:hover, .tbs .tbs-results button:focus { background: #eef3fa; }
+    .tbs .tbs-results small { color: #6b7788; display: block; }
 </style>
 
 <div class="tbs">
     <div class="card-box">
-        <h1>{% if kind == 'cleaning' %}Cleaning - pending{% elif kind == 'services' %}General services - pending{% else %}Pending{% endif %}</h1>
+        <h1>{% if mode == 'form' %}{% if kind == 'services' %}General services - request a schedule{% else %}Cleaning - request a schedule{% endif %}{% else %}{% if kind == 'cleaning' %}Cleaning - pending{% elif kind == 'services' %}General services - pending{% else %}Pending{% endif %}{% endif %}</h1>
         <div class="muted">Customers who need {% if kind == 'cleaning' %}a cleaning{% elif kind == 'services' %}a service visit{% else %}a cleaning or service visit{% endif %} but do not have a date yet. Anybody can add one; {% if user.is_staff %}tap <b>Schedule it</b> to give it a date.{% else %}{{ scheduler|default:"the scheduler" }} will give it a date.{% endif %}</div>
         {% if wa_link %}<div style="margin-top:10px"><a class="btn btn-success btn-sm" target="_blank" rel="noopener" href="{{ wa_link }}">Tell {{ scheduler|default:"the scheduler" }} on WhatsApp</a> <span class="muted">(she already got an alert in the portal; this is an extra nudge)</span></div>{% endif %}
     </div>
 
+    {% if mode != 'form' %}
     <div class="card-box">
         <b>Pending ({{ pending|length }})</b>
         {% for r in pending %}
@@ -43,32 +50,37 @@
         <div class="muted" style="margin-top:8px">Nothing is waiting. Everything has a date.</div>
         {% endfor %}
     </div>
+    {% endif %}
 
+    {% if mode == 'form' %}
     <div class="card-box">
         <b>Request a schedule</b>
-        <form method="post" action="{% url 'to_schedule_add' %}" style="margin-top:12px">
+        <div class="muted" style="margin-top:4px">Type the customer's name or phone number. Pick the right one from the list and the details come in by themselves. A new customer: just type the name and phone.</div>
+        <form method="post" action="{% url 'to_schedule_add' %}" style="margin-top:12px" autocomplete="off">
             {% csrf_token %}
             <input type="hidden" name="back" value="{{ kind }}">
+            <input type="hidden" name="customer" id="tbs_customer" value="">
             <div class="grid">
-                <div><label>Customer</label>
-                    <select name="customer" id="tbs_customer" class="form-control">
-                        <option value="">- not in the list (type the name) -</option>
-                        {% for c in customers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
-                    </select></div>
-                <div><label>Name (if not in the list)</label><input name="customer_name" id="tbs_name" class="form-control" placeholder="Customer name"></div>
+                <div class="tbs-pick"><label>Customer name</label>
+                    <input name="customer_name" id="tbs_name" class="form-control" placeholder="Start typing the name" required>
+                    <div class="tbs-results" id="tbs_name_results" hidden></div></div>
+                <div class="tbs-pick"><label>Phone</label>
+                    <input name="phone" id="tbs_phone" class="form-control" inputmode="tel" placeholder="Type the phone number">
+                    <div class="tbs-results" id="tbs_phone_results" hidden></div></div>
                 <div><label>Site</label><select name="site" id="tbs_site" class="form-control"><option value="">-</option></select></div>
                 <div><label>Location (if no site)</label><input name="location" class="form-control" placeholder="Area / address"></div>
-                <div><label>Phone</label><input name="phone" id="tbs_phone" class="form-control"></div>
                 <div><label>Service</label><input name="service" class="form-control" list="tbs_services" value="{% if kind != 'services' %}Cleaning{% endif %}" placeholder="{% if kind == 'services' %}e.g. Inverter issue, Earthing check{% endif %}" autocomplete="off"></div>
                 <div><label>Wanted by (optional)</label><input type="date" name="wanted_by" class="form-control" min="{{ today|date:'Y-m-d' }}"></div>
-                <div><label>Note (optional)</label><input name="note" class="form-control" placeholder="e.g. call before coming"></div>
+                <div style="grid-column: 1 / -1"><label>Note (optional)</label><input name="note" class="form-control" placeholder="e.g. call before coming"></div>
             </div>
+            <div id="tbs_picked" class="muted" style="margin-top:10px" hidden></div>
             <datalist id="tbs_services">{% for s in services %}<option value="{{ s }}">{% endfor %}</datalist>
             <button class="btn btn-success" type="submit" style="margin-top:14px">Request schedule</button>
         </form>
     </div>
+    {% endif %}
 
-    {% if recent %}
+    {% if recent and mode != 'form' %}
     <div class="card-box">
         <b>Recently scheduled</b>
         {% for r in recent %}
@@ -80,22 +92,85 @@
 </div>
 
 {{ customers|json_script:"tbs-customers" }}
+{% if mode == 'form' %}
 <script>
 (function () {
     var data = JSON.parse(document.getElementById('tbs-customers').textContent);
     var customer = document.getElementById('tbs_customer'), site = document.getElementById('tbs_site');
     var name = document.getElementById('tbs_name'), phone = document.getElementById('tbs_phone');
-    customer.addEventListener('change', function () {
-        var found = data.filter(function (c) { return String(c.id) === customer.value; })[0];
+    var nameBox = document.getElementById('tbs_name_results'), phoneBox = document.getElementById('tbs_phone_results');
+    var picked = document.getElementById('tbs_picked'), pickedName = '';
+
+    function digits(t) { return (t || '').replace(/\D/g, ''); }
+    function lower(t) { return (t || '').toLowerCase(); }
+
+    function find(text, byPhone) {
+        var out = [];
+        if (byPhone) {
+            var d = digits(text);
+            if (d.length < 3) { return out; }
+            data.forEach(function (c) { if (digits(c.phone).indexOf(d) !== -1) { out.push(c); } });
+        } else {
+            var q = lower(text).trim();
+            if (q.length < 2) { return out; }
+            var words = q.split(/\s+/);
+            data.forEach(function (c) {
+                var n = lower(c.name);
+                if (words.every(function (w) { return n.indexOf(w) !== -1; })) { out.push(c); }
+            });
+        }
+        return out.slice(0, 8);
+    }
+
+    function show(box, list) {
+        box.innerHTML = '';
+        if (!list.length) { box.hidden = true; return; }
+        list.forEach(function (c) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            var place = c.sites.length ? c.sites[0].label : '';
+            b.innerHTML = '<b></b><small></small>';
+            b.firstChild.textContent = c.name;
+            b.lastChild.textContent = [c.phone, place].filter(Boolean).join(' · ') || 'no phone saved';
+            b.addEventListener('click', function () { choose(c); });
+            box.appendChild(b);
+        });
+        box.hidden = false;
+    }
+
+    function choose(c) {
+        customer.value = c.id; pickedName = c.name;
+        name.value = c.name;
+        phone.value = c.phone || '';
         site.innerHTML = '<option value="">-</option>';
-        if (!found) { name.disabled = false; return; }
-        name.value = ''; name.disabled = true;
-        if (found.phone && !phone.value) { phone.value = found.phone; }
-        found.sites.forEach(function (s) {
+        c.sites.forEach(function (s) {
             var o = document.createElement('option'); o.value = s.id; o.textContent = s.label; site.appendChild(o);
         });
-        if (found.sites.length === 1) { site.value = found.sites[0].id; }
+        if (c.sites.length === 1) { site.value = c.sites[0].id; }
+        nameBox.hidden = true; phoneBox.hidden = true;
+        picked.textContent = 'Existing customer chosen: ' + c.name + (c.phone ? ' (' + c.phone + ')' : '');
+        picked.hidden = false;
+    }
+
+    function unpick() {
+        if (!customer.value) { return; }
+        customer.value = ''; pickedName = '';
+        site.innerHTML = '<option value="">-</option>';
+        picked.hidden = true;
+    }
+
+    name.addEventListener('input', function () {
+        if (customer.value && name.value !== pickedName) { unpick(); }
+        show(nameBox, customer.value ? [] : find(name.value, false));
+    });
+    phone.addEventListener('input', function () {
+        if (customer.value && digits(phone.value) !== digits((data.filter(function (c) { return String(c.id) === customer.value; })[0] || {}).phone)) { unpick(); }
+        show(phoneBox, customer.value ? [] : find(phone.value, true));
+    });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.tbs-pick')) { nameBox.hidden = true; phoneBox.hidden = true; }
     });
 })();
 </script>
+{% endif %}
 {% endblock %}

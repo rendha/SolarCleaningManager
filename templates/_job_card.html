@@ -31,6 +31,9 @@
             <span class="badge {% if schedule.service_name|lower == 'cleaning' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">
                 {{ schedule.service_name }}
             </span>
+            {% if schedule.service_name|lower == 'cleaning' %}
+                <span class="badge {% if schedule.is_free %}text-bg-success{% else %}text-bg-primary{% endif %}">{% if schedule.is_free %}Free{% else %}Paid{% endif %}</span>
+            {% endif %}
         </div>
 
         <h5 class="fw-bold mb-1">{{ schedule.get_customer_name }}</h5>
