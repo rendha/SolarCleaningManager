@@ -50,6 +50,11 @@ urlpatterns = [
     path('api/schedule/events/', views.schedule_events_api, name='schedule_events_api'),
     path('api/customer/<int:customer_id>/sites/', views.customer_sites_api, name='customer_sites_api'),
 
+    # TO BE SCHEDULED
+    path('to-schedule/', views.to_schedule_view, name='to_schedule'),
+    path('to-schedule/add/', views.to_schedule_add, name='to_schedule_add'),
+    path('to-schedule/<int:pk>/delete/', views.to_schedule_delete, name='to_schedule_delete'),
+
     # CANVASSING
     path('canvassing/', views.canvassing_view, name='canvassing'),
     path('canvassing/find-locations/', views.fill_site_coordinates_view, name='fill_site_coordinates'),

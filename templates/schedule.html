@@ -277,6 +277,29 @@
 
 </div>
 
+
+<!-- Customers waiting for a date -->
+<div class="calendar-card mt-3" id="waitingBox">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h5 class="fw-bold mb-0">To be scheduled{% if waiting %} <span class="badge bg-danger">{{ waiting|length }}</span>{% endif %}</h5>
+        <a href="{% url 'to_schedule' %}" class="btn btn-outline-primary btn-sm">+ Add to the list</a>
+    </div>
+    {% for r in waiting %}
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 py-2" style="border-top:1px solid #e6ebf2">
+        <div>
+            <b>{{ r.display_name }}</b>
+            <span class="badge bg-light text-primary">{{ r.service_name }}</span>
+            {% if r.wanted_by %}<span class="badge bg-warning text-dark">Wanted by {{ r.wanted_by|date:"d M Y" }}</span>{% endif %}
+            <div class="text-muted small">{% if r.display_location %}{{ r.display_location }} &middot; {% endif %}{% if r.phone %}{{ r.phone }} &middot; {% endif %}Added {{ r.created_at|date:"d M" }}{% if r.requested_by %} by {{ r.requested_by.get_full_name|default:r.requested_by.username }}{% endif %}</div>
+            {% if r.note %}<div class="small">{{ r.note|linebreaksbr }}</div>{% endif %}
+        </div>
+        <a class="btn btn-primary btn-sm" href="{% url 'add_schedule' %}?request={{ r.id }}">Schedule it</a>
+    </div>
+    {% empty %}
+    <div class="text-muted small">Nothing is waiting. Everything has a date.</div>
+    {% endfor %}
+</div>
+
 {% endblock %}
 
 

@@ -239,6 +239,21 @@ JobExpenseFormSet = inlineformset_factory(
 
 class CleaningScheduleForm(ServiceFieldMixin, forms.ModelForm):
 
+    # Office / admin work (documentation etc.) that has no customer.
+    # Not saved as its own column: an office schedule is simply one with
+    # no customer, no site and no location/address.
+    office_work = forms.BooleanField(
+        required=False,
+        label='Office work (no customer)',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'id_office_work',
+            'role': 'switch',
+        }),
+    )
+
+    OFFICE_NAME = 'Office work'
+
     class Meta:
 
         model = CleaningSchedule
@@ -352,6 +367,13 @@ class CleaningScheduleForm(ServiceFieldMixin, forms.ModelForm):
 
         self.setup_service_field()
 
+        # Editing an existing office schedule: start with the switch on
+        inst = self.instance
+        if inst.pk and not inst.customer_id and not inst.site_id \
+                and not (inst.location or '').strip() \
+                and not (inst.address or '').strip():
+            self.initial['office_work'] = True
+
         self.fields['customer'].required = False
         self.fields['site'].required = False
         self.fields['customer_name'].required = False
@@ -387,6 +409,21 @@ class CleaningScheduleForm(ServiceFieldMixin, forms.ModelForm):
     def clean(self):
 
         cleaned_data = super().clean()
+
+        # Office work: no customer, site or address needed
+        if cleaned_data.get('office_work'):
+
+            cleaned_data['customer'] = None
+            cleaned_data['site'] = None
+            cleaned_data['phone'] = ''
+            cleaned_data['solar_kw'] = ''
+            cleaned_data['location'] = ''
+            cleaned_data['address'] = ''
+
+            if not (cleaned_data.get('customer_name') or '').strip():
+                cleaned_data['customer_name'] = self.OFFICE_NAME
+
+            return cleaned_data
 
         customer = cleaned_data.get('customer')
         customer_name = cleaned_data.get('customer_name')

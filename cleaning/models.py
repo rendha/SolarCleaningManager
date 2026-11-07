@@ -432,5 +432,40 @@ class CleaningSchedule(models.Model):
         )
 
 
+class ScheduleRequest(models.Model):
+    """A "to be scheduled" item: somebody says this customer needs a cleaning / service visit, and the scheduler gives it a date.
+    When it is scheduled (Add Schedule opened from this item) it is marked done and linked to the schedule."""
 
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='schedule_requests')
+    customer_name = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    site = models.ForeignKey(Site, on_delete=models.SET_NULL, null=True, blank=True, related_name='schedule_requests')
+    location = models.CharField(max_length=250, blank=True)
+    service_type = models.ForeignKey(ServiceType, on_delete=models.SET_NULL, null=True, blank=True, related_name='schedule_requests')
+    note = models.TextField(blank=True)
+    wanted_by = models.DateField(null=True, blank=True)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='schedule_requests')
+    created_at = models.DateTimeField(auto_now_add=True)
+    done = models.BooleanField(default=False)
+    done_at = models.DateTimeField(null=True, blank=True)
+    schedule = models.ForeignKey(CleaningSchedule, on_delete=models.SET_NULL, null=True, blank=True, related_name='from_requests')
 
+    class Meta:
+        ordering = ['created_at']
+
+    @property
+    def display_name(self):
+        return self.customer.name if self.customer_id else self.customer_name
+
+    @property
+    def display_location(self):
+        if self.site_id:
+            return self.site.location or self.site.address or self.location
+        return self.location
+
+    @property
+    def service_name(self):
+        return self.service_type.name if self.service_type_id else 'Cleaning'
+
+    def __str__(self):
+        return f"{self.display_name} - {self.service_name}"

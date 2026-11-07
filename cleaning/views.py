@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.db.models import Sum, Count, Q
 from datetime import datetime, timedelta
-from .models import Customer,Site,CleaningJob, JobExpense,CanvassingLocation,CleaningSchedule, ServiceType
+from .models import Customer,Site,CleaningJob, JobExpense,CanvassingLocation,CleaningSchedule, ServiceType, ScheduleRequest
 from .forms import CleaningJobForm, JobExpenseFormSet,CleaningScheduleForm,EmployeeJobForm
 from django.http import JsonResponse
 import re
@@ -257,7 +257,12 @@ def schedule_view(request):
         .distinct()
         .order_by('name')
     )
-    return render(request, 'schedule.html', {'services': services, 'kind': kind})   
+    # customers waiting for a date (the "To be scheduled" list), shown under the calendar: cleaning items on the Cleaning
+    # page, everything else on the Services page
+    waiting = ScheduleRequest.objects.filter(done=False).select_related('customer', 'site', 'service_type', 'requested_by')
+    cleaning_items = Q(service_type__isnull=True) | Q(service_type__name__iexact='cleaning')
+    waiting = waiting.exclude(cleaning_items) if kind == 'services' else waiting.filter(cleaning_items)
+    return render(request, 'schedule.html', {'services': services, 'kind': kind, 'waiting': waiting})   
 
 
 def _service_breakdown(jobs):
@@ -1291,6 +1296,9 @@ def _schedule_calendar_url(schedule):
 @owner_required
 def add_schedule_view(request):
 
+    # opened from the "To be scheduled" list: the form is filled from that item, and the item is closed when this is saved
+    from_request = request.POST.get('from_request') or request.GET.get('request') or ''
+
     if request.method == 'POST':
 
         form = CleaningScheduleForm(request.POST)
@@ -1298,6 +1306,8 @@ def add_schedule_view(request):
         if form.is_valid():
 
             schedule = form.save()
+
+            _close_request(request.POST.get('from_request'), schedule)
 
             return redirect(_schedule_calendar_url(schedule))
 
@@ -1312,6 +1322,10 @@ def add_schedule_view(request):
         if 'service' in request.GET:
             initial['service'] = request.GET['service']
 
+        wanted = ScheduleRequest.objects.filter(pk=int(from_request), done=False).first() if str(from_request).isdigit() else None
+        if wanted:
+            initial.update(_request_initial(wanted))
+
         form = CleaningScheduleForm(initial=initial)
 
     return render(
@@ -1325,6 +1339,7 @@ def add_schedule_view(request):
                 else 'Add Schedule'
             ),
             'button_text': 'Save Schedule',
+            'from_request': from_request,
         }
     )
 
@@ -1887,3 +1902,92 @@ def employee_add_job_view(request):
             'schedule': schedule,
         }
     )
+
+
+# =========================================================
+# TO BE SCHEDULED  (anybody adds, the scheduler gives the date)
+# =========================================================
+
+def _request_initial(wanted):
+    """The Add Schedule form's starting values for a "to be scheduled" item."""
+    note = wanted.note.strip()
+    who = (wanted.requested_by.get_full_name() or wanted.requested_by.get_username()) if wanted.requested_by_id else ''
+    lines = [note] if note else []
+    if who:
+        lines.append('Asked by ' + who)
+    if wanted.wanted_by:
+        lines.append('Wanted by ' + wanted.wanted_by.strftime('%d %b %Y'))
+    initial = {
+        'customer': wanted.customer_id, 'site': wanted.site_id, 'customer_name': wanted.customer_name,
+        'phone': wanted.phone or (wanted.customer.phone if wanted.customer_id else ''),
+        'location': wanted.location, 'notes': '\n'.join(lines), 'service': wanted.service_name,
+    }
+    if wanted.site_id:
+        initial['solar_kw'] = wanted.site.solar_kw
+    if wanted.wanted_by:
+        initial['scheduled_date'] = wanted.wanted_by
+    return {k: v for k, v in initial.items() if v not in (None, '')}
+
+
+def _close_request(pk, schedule):
+    """The item was scheduled: mark it done and remember which schedule it became."""
+    if str(pk or '').isdigit():
+        from django.utils import timezone
+        ScheduleRequest.objects.filter(pk=int(pk), done=False).update(done=True, done_at=timezone.now(), schedule=schedule)
+
+
+def to_schedule_view(request):
+    pending = ScheduleRequest.objects.filter(done=False).select_related('customer', 'site', 'service_type', 'requested_by')
+    recent = (
+        ScheduleRequest.objects.filter(done=True)
+        .select_related('customer', 'site', 'service_type', 'requested_by', 'schedule')
+        .order_by('-done_at')[:10]
+    )
+    customers = []
+    for c in Customer.objects.prefetch_related('sites').order_by('name'):
+        sites = []
+        for s in c.sites.all():
+            kw = (str(s.solar_kw) + ' kW') if s.solar_kw else ''
+            sites.append({'id': s.id, 'label': ' - '.join(x for x in (s.location, kw) if x) or 'Site'})
+        customers.append({'id': c.id, 'name': c.name, 'phone': c.phone, 'sites': sites})
+    return render(request, 'to_schedule.html', {
+        'pending': pending, 'recent': recent, 'customers': customers,
+        'services': ServiceType.suggestions(), 'today': datetime.now().date(),
+        'page': 'to_schedule',
+    })
+
+
+@require_POST
+def to_schedule_add(request):
+    post = request.POST
+    customer = Customer.objects.filter(pk=post.get('customer')).first() if (post.get('customer') or '').isdigit() else None
+    site = Site.objects.filter(pk=post.get('site'), customer=customer).first() if customer and (post.get('site') or '').isdigit() else None
+    name = ' '.join((post.get('customer_name') or '').split())
+    if not customer and not name:
+        messages.error(request, 'Pick a customer, or type the name.')
+        return redirect('to_schedule')
+    wanted_by = None
+    try:
+        if post.get('wanted_by'):
+            wanted_by = datetime.strptime(post['wanted_by'], '%Y-%m-%d').date()
+    except ValueError:
+        wanted_by = None
+    ScheduleRequest.objects.create(
+        customer=customer, customer_name='' if customer else name[:150],
+        phone=(post.get('phone') or '')[:50], site=site, location=(post.get('location') or '')[:250],
+        service_type=ServiceType.from_text(post.get('service')) or ServiceType.cleaning(),
+        note=(post.get('note') or '').strip(), wanted_by=wanted_by, requested_by=request.user,
+    )
+    messages.success(request, 'Added to the list. It will be scheduled soon.')
+    return redirect('to_schedule')
+
+
+@require_POST
+def to_schedule_delete(request, pk):
+    item = get_object_or_404(ScheduleRequest, pk=pk, done=False)
+    if request.user.is_staff or item.requested_by_id == request.user.id:
+        item.delete()
+        messages.success(request, 'Removed from the list.')
+    else:
+        messages.error(request, 'Only the person who added it, or the scheduler, can remove it.')
+    return redirect('to_schedule')

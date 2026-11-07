@@ -8,6 +8,6 @@ def owner_required(view):
         if not request.user.is_staff:
             if request.headers.get('x-request-with') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'error': 'Not allowed'}, status=403)
-            raise PermissionsDenied
+            raise PermissionDenied
         return view(request, *args, **kwargs)
     return wrapper            

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, Site, RateCard, CleaningJob, JobExpense,CanvassingLocation, ServiceType
+from .models import Customer, Site, RateCard, CleaningJob, JobExpense,CanvassingLocation, ServiceType, ScheduleRequest
 
 
 @admin.register(Customer)
@@ -63,3 +63,9 @@ class CanvassingLocationAdmin(admin.ModelAdmin):
 class ServiceTypeAdmin(admin.ModelAdmin):
     list_display = ('name', 'created_at')
     search_fields = ('name',)
+
+
+@admin.register(ScheduleRequest)
+class ScheduleRequestAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer', 'customer_name', 'service_type', 'requested_by', 'created_at', 'done')
+    list_filter = ('done',)

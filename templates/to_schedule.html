@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .tbs { max-width: 900px; margin: 20px auto; }
+    .tbs .card-box { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.08); margin-bottom: 18px; }
+    .tbs h1 { margin: 0 0 4px; font-size: 1.6rem; }
+    .tbs .muted { color: #6b7788; font-size: .9rem; }
+    .tbs .item { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-top: 1px solid #e6ebf2; flex-wrap: wrap; }
+    .tbs .item:first-of-type { border-top: 0; }
+    .tbs .tag { display: inline-block; font-size: .75rem; background: #eef3fa; color: #3B73B9; border-radius: 999px; padding: 2px 9px; margin-right: 4px; }
+    .tbs .tag.warn { background: #fff1e0; color: #c25a00; }
+    .tbs label { font-weight: 600; font-size: .85rem; margin-bottom: 4px; display: block; }
+    .tbs .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px) { .tbs .grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="tbs">
+    <div class="card-box">
+        <h1>To be scheduled</h1>
+        <div class="muted">Customers who need a cleaning or service visit but do not have a date yet. Anybody can add one; {% if user.is_staff %}tap <b>Schedule it</b> to give it a date.{% else %}the scheduler will give it a date.{% endif %}</div>
+    </div>
+
+    <div class="card-box">
+        <b>Waiting ({{ pending|length }})</b>
+        {% for r in pending %}
+        <div class="item">
+            <div>
+                <b>{{ r.display_name }}</b>
+                <span class="tag">{{ r.service_name }}</span>{% if r.wanted_by %}<span class="tag warn">Wanted by {{ r.wanted_by|date:"d M Y" }}</span>{% endif %}
+                <div class="muted">{% if r.display_location %}{{ r.display_location }} &middot; {% endif %}{% if r.phone %}{{ r.phone }} &middot; {% endif %}Added {{ r.created_at|date:"d M" }}{% if r.requested_by %} by {{ r.requested_by.get_full_name|default:r.requested_by.username }}{% endif %}</div>
+                {% if r.note %}<div style="margin-top:4px">{{ r.note|linebreaksbr }}</div>{% endif %}
+            </div>
+            <div style="display:flex; gap:8px">
+                {% if user.is_staff %}<a class="btn btn-primary btn-sm" href="{% url 'add_schedule' %}?request={{ r.id }}">Schedule it</a>{% endif %}
+                {% if user.is_staff or r.requested_by_id == user.id %}
+                <form method="post" action="{% url 'to_schedule_delete' r.id %}" onsubmit="return confirm('Remove this from the list?')">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm" type="submit">Remove</button></form>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="muted" style="margin-top:8px">Nothing is waiting. Everything has a date.</div>
+        {% endfor %}
+    </div>
+
+    <div class="card-box">
+        <b>Add a customer to the list</b>
+        <form method="post" action="{% url 'to_schedule_add' %}" style="margin-top:12px">
+            {% csrf_token %}
+            <div class="grid">
+                <div><label>Customer</label>
+                    <select name="customer" id="tbs_customer" class="form-control">
+                        <option value="">- not in the list (type the name) -</option>
+                        {% for c in customers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                    </select></div>
+                <div><label>Name (if not in the list)</label><input name="customer_name" id="tbs_name" class="form-control" placeholder="Customer name"></div>
+                <div><label>Site</label><select name="site" id="tbs_site" class="form-control"><option value="">-</option></select></div>
+                <div><label>Location (if no site)</label><input name="location" class="form-control" placeholder="Area / address"></div>
+                <div><label>Phone</label><input name="phone" id="tbs_phone" class="form-control"></div>
+                <div><label>Service</label><input name="service" class="form-control" list="tbs_services" value="Cleaning" autocomplete="off"></div>
+                <div><label>Wanted by (optional)</label><input type="date" name="wanted_by" class="form-control" min="{{ today|date:'Y-m-d' }}"></div>
+                <div><label>Note (optional)</label><input name="note" class="form-control" placeholder="e.g. call before coming"></div>
+            </div>
+            <datalist id="tbs_services">{% for s in services %}<option value="{{ s }}">{% endfor %}</datalist>
+            <button class="btn btn-success" type="submit" style="margin-top:14px">Add to the list</button>
+        </form>
+    </div>
+
+    {% if recent %}
+    <div class="card-box">
+        <b>Recently scheduled</b>
+        {% for r in recent %}
+        <div class="item"><div><b>{{ r.display_name }}</b> <span class="tag">{{ r.service_name }}</span>
+            <div class="muted">{% if r.schedule %}Scheduled for {{ r.schedule.scheduled_date|date:"d M Y" }}{% else %}Scheduled{% endif %}</div></div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+{{ customers|json_script:"tbs-customers" }}
+<script>
+(function () {
+    var data = JSON.parse(document.getElementById('tbs-customers').textContent);
+    var customer = document.getElementById('tbs_customer'), site = document.getElementById('tbs_site');
+    var name = document.getElementById('tbs_name'), phone = document.getElementById('tbs_phone');
+    customer.addEventListener('change', function () {
+        var found = data.filter(function (c) { return String(c.id) === customer.value; })[0];
+        site.innerHTML = '<option value="">-</option>';
+        if (!found) { name.disabled = false; return; }
+        name.value = ''; name.disabled = true;
+        if (found.phone && !phone.value) { phone.value = found.phone; }
+        found.sites.forEach(function (s) {
+            var o = document.createElement('option'); o.value = s.id; o.textContent = s.label; site.appendChild(o);
+        });
+        if (found.sites.length === 1) { site.value = found.sites[0].id; }
+    });
+})();
+</script>
+{% endblock %}

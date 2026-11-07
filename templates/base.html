@@ -2,6 +2,7 @@
 <html lang="en">
 
 {% load static %}
+{% load cleaning_extras %}
 
 <head>
 
@@ -295,6 +296,12 @@
                         </li>
 
                         <li class="nav-item">
+                            <a class="nav-link{% if page == 'to_schedule' %} active-page{% endif %}" href="{% url 'to_schedule' %}">
+                                To Be Scheduled{% pending_requests as waiting %}{% if waiting %} <span class="badge bg-danger">{{ waiting }}</span>{% endif %}
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
                             <a class="nav-link{% if page == 'add_job' %} active-page{% endif %}" href="{% url 'add_job' %}">
                                 Add Job
                             </a>
@@ -337,6 +344,12 @@
                         <li class="nav-item">
                             <a class="nav-link{% if page == 'employee_add_job' %} active-page{% endif %}" href="{% url 'employee_add_job' %}">
                                 Record Job
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link{% if page == 'to_schedule' %} active-page{% endif %}" href="{% url 'to_schedule' %}">
+                                Ask for a Schedule
                             </a>
                         </li>
 
