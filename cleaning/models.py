@@ -302,6 +302,7 @@ class CleaningSchedule(models.Model):
     STATUS_CHOICES = [
         ('Scheduled', 'Scheduled'),
         ('Completed', 'Completed'),
+        ('Partially done', 'Partially done'),
         ('Rescheduled', 'Rescheduled'),
         ('Cancelled', 'Cancelled'),
     ]

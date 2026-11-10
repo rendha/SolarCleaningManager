@@ -220,6 +220,7 @@
     <div class="legend">
         <div class="legend-item"><span class="legend-dot" style="background:#3B73B9"></span> Scheduled</div>
         <div class="legend-item"><span class="legend-dot" style="background:#28a745"></span> Completed</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#8e5bd1"></span> Partially done</div>
         <div class="legend-item"><span class="legend-dot" style="background:#f0ad4e"></span> Rescheduled</div>
         <div class="legend-item"><span class="legend-dot" style="background:#dc3545"></span> Cancelled</div>
     </div>
@@ -268,6 +269,7 @@
         <select id="modalStatus" class="form-select mb-3">
             <option value="Scheduled">Scheduled</option>
             <option value="Completed">Completed</option>
+            <option value="Partially done">Partially done</option>
             <option value="Rescheduled">Rescheduled</option>
             <option value="Cancelled">Cancelled</option>
         </select>
@@ -326,6 +328,7 @@
 const STATUS_COLORS = {
     Scheduled: '#3B73B9',
     Completed: '#28a745',
+    'Partially done': '#8e5bd1',
     Rescheduled: '#f0ad4e',
     Cancelled: '#dc3545',
 };

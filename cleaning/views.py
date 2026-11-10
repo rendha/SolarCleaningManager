@@ -1513,6 +1513,7 @@ def update_schedule_status_view(request, pk):
 STATUS_COLORS = {
     'Scheduled': '#3B73B9',
     'Completed': '#28a745',
+    'Partially done': '#8e5bd1',
     'Rescheduled': '#f0ad4e',
     'Cancelled': '#dc3545',
 }
