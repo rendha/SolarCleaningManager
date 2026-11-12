@@ -16,7 +16,7 @@ def owner_required(view):
 
 # The people who go out to site: they keep their own "My Jobs" dashboard.  Everybody else who is not an owner sees the Service Desk.
 # Add more by putting a person in the group "Field team" in Admin.
-FIELD_TEAM = {'aswanth', 'ziyad', 'junaid'}
+FIELD_TEAM = {'aswanth', 'ziyad', 'junaid', 'sharafudheen'}
 
 
 def is_field_team(user):

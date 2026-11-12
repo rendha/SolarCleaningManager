@@ -405,12 +405,12 @@ class CleaningScheduleForm(ServiceFieldMixin, forms.ModelForm):
         self.fields['scheduled_time'].required = False
         self.fields['notes'].required = False
 
-        # Employee dropdown: only active, non-owner users
+        # Employee dropdown: every active person except the superuser (directors such as Fidha and Riswan also go to service)
         self.fields['assigned_to'].required = False
         self.fields['assigned_to'].label = 'Assign to employee'
         self.fields['assigned_to'].queryset = (
             get_user_model().objects
-            .filter(is_active=True, is_staff=False)
+            .filter(is_active=True, is_superuser=False)
             .order_by('first_name', 'username')
         )
         self.fields['assigned_to'].label_from_instance = (

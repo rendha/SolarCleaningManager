@@ -22,7 +22,7 @@ FIELDS = ["username", "password", "first_name", "last_name", "email", "is_staff"
 # used only when the portal's database is not found
 PEOPLE = ["Siraj", "Fousan", "Hudha", "Riswan", "Junaid", "Ziyad", "Aswanth", "Fidha", "Anoop", "Hari", "Robins",
           "Anupama", "Satheesh", "Rijul"]
-RESET_PASSWORDS = {"Imran": "imrandehlsen"}
+RESET_PASSWORDS = {"Imran": "imrandehlsen", "sharafudheen": "sharafudehlsen"}
 OWNERS = {"fidha"}          # made with the owner dashboard (staff) when the portal database is not available (e.g. on Render)
 
 
@@ -126,7 +126,7 @@ class Command(BaseCommand):
             for name, password in RESET_PASSWORDS.items():
                 user = User.objects.filter(username__iexact=name).first() or User.objects.filter(first_name__iexact=name).first()
                 if user is None:
-                    user = User(username=name, first_name=name)
+                    user = User(username=name, first_name=name.title())
                 user.set_password(password)
                 user.is_staff = False          # a director signs in as a normal person here: only Fidha (and superusers) get the owner dashboard
                 user.is_superuser = False
